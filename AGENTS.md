@@ -1,5 +1,31 @@
 # T3 Code
 
+## Nikita's personal fork
+
+This checkout belongs to `NikitaTLN/t3code`. Read
+[the fork runbook](docs/operations/personal-fork.md) before Git or release work.
+These fork rules take precedence over upstream's maintainer/contribution workflow below:
+
+- Follow published **nightly** releases of `pingdotgg/t3code`; exclude stable,
+  preview, and unreleased `upstream/main` commits from routine updates.
+- `origin` is Nikita's fork; `upstream` is read-only. `personal` is the default
+  integration branch. Treat it like `main` in the global `git-workflow` skill:
+  keep the primary checkout on it and never develop or commit directly on it.
+- Create task branches from `origin/personal`, with worktrees next to the
+  primary checkout at `../t3code-worktrees/<branch>`. Use this repo's `vp i`,
+  not the generic skill's `npm ci`.
+- Use Nikita's usual commit/push/PR workflow for requested implementation work.
+  File real PRs against `personal` in **NikitaTLN/t3code**, using `file-pr`,
+  and merge with a merge commit when authorized. Upstream PRs require an
+  explicit request; upstream feature-approval rules do not govern this fork.
+- Run `vp run check:changed origin/personal` and the focused behavior checks.
+  Preserve the upstream engineering, test-data, and live-install rules below.
+- Nightly updates are task branches too. Merge the published nightly tag;
+  never reset the fork, rebase published branches, or automatically deploy it.
+- Credentials and machine-specific provider configuration stay outside Git.
+  Global instructions/skills are managed in `~/Projects/tlnstack`; don't copy
+  hub/native configs or edit installed instruction copies in this repo.
+
 T3 Code is a minimal GUI for coding agents. A Node WebSocket server wraps provider CLIs and agents (Codex, Claude Code, Cursor, Grok, OpenCode, Antigravity, Kiro) and serves web, desktop, and mobile clients.
 
 You can think of T3 Code as an open source "bring-your-own-subscription" alternative to apps like Claude Desktop, Codex App, Cursor Glass and Conductor.
