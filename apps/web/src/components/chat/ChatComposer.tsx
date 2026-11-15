@@ -3,6 +3,7 @@ import { useComposerTypingGuard } from "./useComposerTypingGuard";
 import { insertAttachmentReferencesForDraft } from "./composerAttachmentReferences";
 import type { ComposerAttachmentInsertion } from "../composerAttachmentInsertion";
 import { DESKTOP_PASTE_AS_TEXT_EVENT } from "../../lib/desktopPasteAsText";
+import { takeDraftSendRequest, useDraftSendRequested } from "../../lib/draftSendRequests";
 import { BackgroundThreadContext } from "./backgroundThread";
 import {
   resolveCompatibleRuntimeMode,
@@ -2196,6 +2197,20 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
   useLayoutEffect(() => {
     submitComposerRef.current = (mode, intent) => submitComposerStable(undefined, mode, intent);
   }, [submitComposerStable]);
+  const draftSendRequested = useDraftSendRequested(composerDraftTargetKey);
+  const draftSendReady =
+    draftSendRequested &&
+    !backgroundThread &&
+    !providerCatalogPending &&
+    !isSendBusy &&
+    environmentUnavailable === null &&
+    !activePendingProgress &&
+    composerSendState.hasSendableContent;
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- answers a sidebar Send request once this composer has mounted and can send
+  useEffect(() => {
+    if (!draftSendReady) return;
+    if (takeDraftSendRequest(composerDraftTargetKey)) submitComposerStable(undefined);
+  }, [composerDraftTargetKey, draftSendReady, submitComposerStable]);
   useDictationSubmissionShortcut({
     enabled: voiceInputActive && !speechInput.preparing,
     formRef: composerFormRef,

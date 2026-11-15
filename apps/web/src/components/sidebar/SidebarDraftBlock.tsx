@@ -1,7 +1,8 @@
 import { discardComposerDraft } from "../../lib/discardComposerDraft";
+import { requestDraftSend } from "../../lib/draftSendRequests";
 import { assistantCitationsToPlainText } from "@t3tools/shared/assistantCitations";
 import { replaceComposerContextReferences } from "@t3tools/shared/composerContextReferences";
-import { SquarePenIcon, XIcon } from "lucide-react";
+import { ArrowUpIcon, SquarePenIcon, XIcon } from "lucide-react";
 import {
   memo,
   useState,
@@ -31,9 +32,10 @@ const SidebarDraftRow = memo(function SidebarDraftRow(props: {
   isActive: boolean;
   onNavigate: (draftId: DraftId) => void;
   onDiscard: (draftId: DraftId) => void;
+  onSend: (draftId: DraftId) => void;
   onContextMenu: (draftId: DraftId, position: { x: number; y: number }) => void;
 }) {
-  const { composer, draftId, onContextMenu, onDiscard, onNavigate } = props;
+  const { composer, draftId, onContextMenu, onDiscard, onNavigate, onSend } = props;
   const promptPreview =
     assistantCitationsToPlainText(
       replaceComposerContextReferences(composer.prompt, (occurrence) => occurrence.label),
@@ -60,9 +62,9 @@ const SidebarDraftRow = memo(function SidebarDraftRow(props: {
   });
   const handleActivate = () => onNavigate(draftId);
   const handleKeyDown = (event: ReactKeyboardEvent) => {
-    // Keys targeting the nested discard button belong to the button:
+    // Keys targeting the nested buttons belong to the button:
     // preventDefault here would swallow Space's synthesized click and
-    // navigate instead of discarding.
+    // navigate instead of acting.
     if ((event.target as HTMLElement).closest("button")) return;
     if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
       event.preventDefault();
@@ -82,6 +84,13 @@ const SidebarDraftRow = memo(function SidebarDraftRow(props: {
     event.stopPropagation();
     onDiscard(draftId);
   };
+  const handleSend = (event: ReactMouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onSend(draftId);
+  };
+  const rowActionClassName =
+    "pointer-events-none inline-flex cursor-pointer items-center rounded-md bg-transparent px-1 text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:pointer-events-auto focus-visible:opacity-100 group-hover/sidebar-row:pointer-events-auto group-hover/sidebar-row:opacity-100";
   return (
     <li className="list-none py-0.5">
       <div
@@ -114,9 +123,24 @@ const SidebarDraftRow = memo(function SidebarDraftRow(props: {
                   render={
                     <button
                       type="button"
+                      aria-label="Send draft"
+                      onClick={handleSend}
+                      className={rowActionClassName}
+                    >
+                      <ArrowUpIcon className="size-3" />
+                    </button>
+                  }
+                />
+                <TooltipPopup side="top">Send draft</TooltipPopup>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                      type="button"
                       aria-label="Discard draft"
                       onClick={handleDiscard}
-                      className="pointer-events-none inline-flex cursor-pointer items-center rounded-md bg-transparent px-1 text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:pointer-events-auto focus-visible:opacity-100 group-hover/sidebar-row:pointer-events-auto group-hover/sidebar-row:opacity-100"
+                      className={rowActionClassName}
                     >
                       <XIcon className="size-3" />
                     </button>
@@ -204,6 +228,10 @@ export const SidebarDraftBlock = memo(function SidebarDraftBlock(props: {
   if (drafts.length === 0) {
     return null;
   }
+  const sendDraft = (draftId: DraftId) => {
+    requestDraftSend(draftId);
+    props.onNavigateToDraft(draftId);
+  };
   return (
     <>
       {drafts.map(({ composer, draftId, session }) => {
@@ -218,6 +246,7 @@ export const SidebarDraftBlock = memo(function SidebarDraftBlock(props: {
             isActive={draftId === props.routeDraftId}
             onNavigate={props.onNavigateToDraft}
             onDiscard={discardComposerDraft}
+            onSend={sendDraft}
             onContextMenu={props.onDraftContextMenu}
           />
         );
