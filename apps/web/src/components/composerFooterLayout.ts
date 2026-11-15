@@ -83,7 +83,7 @@ export function resolveRestingComposerControlsNaturalWidth(
   return restingComposerControlsWidth(input, 0);
 }
 
-const RESTING_CONTROLS_SLACK_PX = 1;
+export const RESTING_CONTROLS_SLACK_PX = 1;
 
 export function resolveRestingComposerControlsLayout(
   input: RestingComposerControlsMeasurement & {

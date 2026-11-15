@@ -1,6 +1,10 @@
 import { measureRestingComposerControls } from "./restingComposerControlsMeasurement";
 import { observeResize } from "~/lib/observeResize";
-import { resolveRestingComposerControlsLayout } from "../composerFooterLayout";
+import {
+  RESTING_CONTROLS_SLACK_PX,
+  resolveRestingComposerControlsLayout,
+  resolveRestingComposerControlsNaturalWidth,
+} from "../composerFooterLayout";
 import { useLayoutEffect, useRef, useState } from "react";
 
 export function useRestingComposerControlsLayout(
@@ -17,7 +21,8 @@ export function useRestingComposerControlsLayout(
     hiddenCount: number;
     iconOnlyCount?: number;
     visible: boolean;
-  }>({ hiddenCount: 0, visible: true });
+    naturalWidth: number | null;
+  }>({ hiddenCount: 0, visible: true, naturalWidth: null });
 
   const measure = () => {
     const currentHost = useControlsAsHost ? controls : host;
@@ -31,6 +36,11 @@ export function useRestingComposerControlsLayout(
       (Number.parseFloat(style.paddingInlineStart) || 0) -
       (Number.parseFloat(style.paddingInlineEnd) || 0);
 
+    // Includes the promotion slack so collapsed controls can expand again at this width.
+    const naturalWidth = useControlsAsHost
+      ? Math.ceil(resolveRestingComposerControlsNaturalWidth(measurement)) +
+        RESTING_CONTROLS_SLACK_PX
+      : null;
     setLayout((current) => {
       const next = resolveRestingComposerControlsLayout({
         ...measurement,
@@ -39,9 +49,10 @@ export function useRestingComposerControlsLayout(
       });
       return next.hiddenCount === current.hiddenCount &&
         next.iconOnlyCount === current.iconOnlyCount &&
-        next.visible === current.visible
+        next.visible === current.visible &&
+        naturalWidth === current.naturalWidth
         ? current
-        : next;
+        : { ...next, naturalWidth };
     });
   };
 
@@ -81,5 +92,6 @@ export function useRestingComposerControlsLayout(
     hiddenBlockCount: layout.hiddenCount,
     iconOnlyBlockCount: layout.iconOnlyCount ?? 0,
     controlsVisible: layout.visible,
+    naturalWidth: layout.naturalWidth,
   };
 }

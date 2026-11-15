@@ -1221,6 +1221,12 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     scheduleComposerFocus();
   };
   const editPromptFromTraitsStable = useStableCallback(editPromptFromTraits);
+  const selectFavoriteModelStable = useStableCallback(
+    (instanceId: ProviderInstanceId, model: string) => {
+      setMultipleModelSelections(null);
+      onProviderModelSelect(instanceId, model);
+    },
+  );
   const promptUltrathink = readPromptUltrathink(prompt);
 
   const [inlineRestingControlsHost, setInlineRestingControlsHost] = useState<HTMLDivElement | null>(
@@ -1237,6 +1243,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     attachControls: attachExpandedComposerControls,
     hiddenBlockCount: expandedControlsHiddenBlockCount,
     iconOnlyBlockCount: expandedControlsIconOnlyBlockCount,
+    naturalWidth: expandedControlsNaturalWidth,
   } = useRestingComposerControlsLayout(null, true);
   const pendingPrimaryAction = activePendingProgress
     ? {
@@ -3734,7 +3741,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
               <div
                 data-chat-composer-footer="true"
                 className={cn(
-                  "@container/composer-footer flex min-w-0 flex-nowrap items-center overflow-visible px-2 pb-2",
+                  "flex min-w-0 flex-nowrap items-center overflow-visible px-2 pb-2",
                   pendingUserInputs.length > 0 && "pt-2",
                   showMobilePendingAnswerActions &&
                     speechInput.state.phase === "idle" &&
@@ -3749,17 +3756,18 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                     <ComposerUsageRing />
                   </div>
                 )}
-                {composerFooterHasWideActions || dictationTakesFooter ? null : (
+                {composerFooterHasWideActions || isComposerFooterCompact ? null : (
                   <ComposerFavoriteModels
                     environmentId={environmentId}
                     instanceEntries={providerInstanceEntries}
                     modelOptionsByInstance={modelOptionsByInstance}
                     selectedInstanceId={selectedInstanceId}
                     selectedModel={selectedModel}
+                    multipleModelsSelected={multipleModelSelections !== null}
                     lockedProvider={lockedProvider}
                     lockedContinuationGroupKey={lockedContinuationGroupKey}
                     getModelDisabledReason={getModelDisabledReason}
-                    onProviderModelSelect={onProviderModelSelect}
+                    onSelect={selectFavoriteModelStable}
                   />
                 )}
                 <div
@@ -3768,14 +3776,21 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                   data-chat-composer-primary-actions-compact={
                     isComposerPrimaryActionsCompact ? "true" : "false"
                   }
-                  className="flex min-w-0 flex-1 flex-nowrap items-center justify-end gap-2"
+                  className="flex min-w-0 flex-[1_1_auto] flex-nowrap items-center justify-end gap-2"
                 >
                   <div
                     ref={attachExpandedComposerControls}
                     data-chat-composer-controls="footer"
                     data-chat-composer-footer-controls="true"
+                    // Natural width as the flex basis lets starred models take only spare room;
+                    // the controls shrink and collapse only once those are gone.
+                    style={
+                      expandedControlsNaturalWidth === null
+                        ? undefined
+                        : { width: expandedControlsNaturalWidth }
+                    }
                     className={cn(
-                      "relative flex min-w-0 flex-1 items-center justify-end gap-0.5",
+                      "relative flex min-w-0 flex-[1_1_auto] items-center justify-end gap-0.5",
                       dictationTakesFooter && "hidden",
                     )}
                   >
