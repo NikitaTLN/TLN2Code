@@ -18,10 +18,7 @@ export function resolveSidebarStageBackdropVariant(
   if (mode === "nightly-artwork") return "nightly";
   if (mode === "dev-artwork") return "dev";
   if (mode !== "artwork") return null;
-  const normalized = stageLabel.trim().toLowerCase();
-  if (normalized === "nightly") return "nightly";
-  if (normalized === "dev") return "dev";
-  return null;
+  return stageLabel.trim().toLowerCase() === "dev" ? "dev" : "nightly";
 }
 
 export function resolveEnvironmentIdentificationPillLabel(
