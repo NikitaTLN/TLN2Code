@@ -463,6 +463,15 @@ export function displayLimitWindows(pool: LimitPool) {
     .sort((left, right) => cursorUsageWindowRank(left.id) - cursorUsageWindowRank(right.id));
 }
 
+/** The pool's window with the least left, which is what blocks that provider first. */
+export function tightestLimitWindow(pool: LimitPool): LimitPoolWindow | null {
+  let tightest: LimitPoolWindow | null = null;
+  for (const window of displayLimitWindows(pool)) {
+    if (tightest === null || window.remainingPercent < tightest.remainingPercent) tightest = window;
+  }
+  return tightest;
+}
+
 const WINDOW_KIND_ORDER: Record<ServerProviderUsageWindow["kind"], number> = {
   session: 0,
   weekly: 1,

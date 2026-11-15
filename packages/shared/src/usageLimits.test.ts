@@ -23,6 +23,7 @@ import {
   paceRemainingPercent,
   usesChatGptSharing,
   resolveNewThreadModelSelection,
+  tightestLimitWindow,
 } from "./usageLimits.ts";
 
 const now = Date.parse("2026-09-03T12:00:00.000Z");
@@ -948,6 +949,7 @@ describe("pooled account columns", () => {
     redeem: null,
     limits: { checkedAt: "2026-09-03T11:00:00.000Z", windows },
   });
+  const codex = ProviderDriverKind.make("codex");
   const keys = (pool: ReturnType<typeof collectLimitPools>[number]) =>
     pool.windows.map((row) =>
       row.columns.map((member) => (member.window ? member.account.key : null)),
@@ -1109,6 +1111,28 @@ describe("pooled account columns", () => {
       now,
     );
     expect(keys(pool!)).toEqual([["b", "a"]]);
+  });
+
+  it("finds each provider's tightest window", () => {
+    const pools = collectLimitPools(
+      [
+        account("claude", [
+          { ...window, usedPercent: 30 },
+          { ...weekly, usedPercent: 60 },
+        ]),
+        { ...account("codex", [{ ...window, usedPercent: 90 }]), driver: codex },
+      ],
+      now,
+    );
+    expect(
+      pools.map((pool) => {
+        const tightest = tightestLimitWindow(pool);
+        return [pool.driver, tightest?.label, tightest?.remainingPercent];
+      }),
+    ).toEqual([
+      ["claudeAgent", "Weekly", 40],
+      ["codex", "Session", 10],
+    ]);
   });
 });
 

@@ -39,6 +39,9 @@ export interface ThreadDetailsUsageInput {
 
 type UsageTone = "error" | "warning" | null;
 
+export const limitTone = (left: number): UsageTone =>
+  left <= 10 ? "error" : left <= 20 ? "warning" : null;
+
 /** The selected provider's limit windows. Each row reads as room left. */
 export function ThreadDetailsUsage({
   providerInstanceId,
@@ -153,7 +156,7 @@ function LimitRow({
     <UsageRow
       label={window.label}
       fill={left}
-      tone={left <= 10 ? "error" : left <= 20 ? "warning" : null}
+      tone={limitTone(left)}
       value={`${left}%`}
       ariaValue={`${left}% left`}
       tooltip={
@@ -175,7 +178,7 @@ function LimitRow({
 }
 
 /** One label, hairline, and value row; the whole row opens the details tooltip. */
-function UsageRow({
+export function UsageRow({
   label,
   fill,
   tone,
