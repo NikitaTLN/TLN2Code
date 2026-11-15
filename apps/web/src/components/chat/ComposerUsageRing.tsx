@@ -12,7 +12,7 @@ import {
   tightestLimitWindow,
 } from "@t3tools/shared/usageLimits";
 import { useNavigate } from "@tanstack/react-router";
-import { memo } from "react";
+import { memo, type ReactNode, useState } from "react";
 
 import { useNowMinute } from "../../hooks/useNowMinute";
 import { environmentPresentations } from "../../state/presentation";
@@ -20,7 +20,9 @@ import { serverEnvironment } from "../../state/server";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { providerClients } from "../settings/providerDriverMeta";
 import { barColor } from "../usage/UsageLimits";
+import { Button } from "../ui/button";
 import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
+import { RefreshIcon } from "../ui/refresh-icon";
 import { ComposerControl } from "./ComposerControl";
 import { ProviderInstanceIcon } from "./ProviderInstanceIcon";
 import { limitTone, UsageRow } from "./ThreadDetailsUsage";
@@ -47,6 +49,7 @@ export const ComposerUsageRing = memo(function ComposerUsageRing() {
     reportFailure: false,
   });
   const navigate = useNavigate();
+  const [refreshing, setRefreshing] = useState(false);
   const pools = collectLimitPools(collectLimitAccounts(presentations), now);
   const segments = pools.flatMap((pool): RingSegment[] => {
     const tightest = tightestLimitWindow(pool);
@@ -59,22 +62,27 @@ export const ComposerUsageRing = memo(function ComposerUsageRing() {
   const summary = segments
     .map((segment) => `${providerLabel(segment.driver)} ${segment.left}% left`)
     .join(", ");
-  // Opening asks each connected server for fresh limits; the shared throttle skips recent reads.
-  const refresh = () => {
-    for (const [environmentId, presentation] of presentations) {
-      if (presentation.connection.phase !== "connected" || presentation.serverConfig === null) {
-        continue;
-      }
-      void refreshUsageLimits(
-        environmentId,
-        () => refreshProviders({ environmentId, input: {} }),
-        true,
-      ).catch(() => undefined);
-    }
+  // Opening refreshes automatically, which the shared throttle skips after a recent read.
+  const refresh = (automatic: boolean) =>
+    Promise.allSettled(
+      Array.from(presentations, ([environmentId, presentation]) =>
+        presentation.connection.phase === "connected" && presentation.serverConfig !== null
+          ? refreshUsageLimits(
+              environmentId,
+              () => refreshProviders({ environmentId, input: {} }),
+              automatic,
+            )
+          : undefined,
+      ),
+    );
+  const refreshNow = () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    void refresh(false).finally(() => setRefreshing(false));
   };
 
   return (
-    <Popover onOpenChange={(open) => open && refresh()}>
+    <Popover onOpenChange={(open) => open && void refresh(true)}>
       <PopoverTrigger
         openOnHover
         delay={150}
@@ -87,12 +95,27 @@ export const ComposerUsageRing = memo(function ComposerUsageRing() {
       </PopoverTrigger>
       <PopoverPopup side="top" align="start" width="md" padding="compact">
         <div className="flex max-h-[min(28rem,60vh)] flex-col gap-3 overflow-y-auto">
-          {pools.map((pool) => (
+          {pools.map((pool, index) => (
             <PoolLimits
               key={pool.driver}
               pool={pool}
               now={now}
               onOpenUsage={() => void navigate({ to: "/usage" })}
+              action={
+                index === 0 ? (
+                  <Button
+                    size="icon-micro"
+                    variant="ghost"
+                    className="ml-auto"
+                    aria-label="Refresh usage limits"
+                    title="Refresh usage limits"
+                    disabled={refreshing}
+                    onClick={refreshNow}
+                  >
+                    <RefreshIcon refreshing={refreshing} />
+                  </Button>
+                ) : null
+              }
             />
           ))}
         </div>
@@ -141,31 +164,38 @@ function PoolLimits({
   pool,
   now,
   onOpenUsage,
+  action,
 }: {
   readonly pool: LimitPool;
   readonly now: number;
   readonly onOpenUsage: () => void;
+  readonly action: ReactNode;
 }) {
   const label = providerLabel(pool.driver);
   return (
     <section className="flex flex-col gap-1">
-      <h3 className="flex items-center gap-2 px-2.5 text-xs font-medium text-foreground">
-        <span
-          aria-hidden
-          className="size-2 shrink-0 rounded-full"
-          style={{ backgroundColor: barColor(pool.driver) }}
-        />
-        <ProviderInstanceIcon
-          driverKind={pool.driver}
-          displayName={label}
-          className="size-4"
-          iconClassName="size-3.5 text-foreground/80"
-        />
-        {label}
-        {pool.accounts.length > 1 ? (
-          <span className="font-normal text-muted-foreground">{pool.accounts.length} accounts</span>
-        ) : null}
-      </h3>
+      <div className="flex items-center gap-2 pr-1">
+        <h3 className="flex min-w-0 items-center gap-2 pl-2.5 text-xs font-medium text-foreground">
+          <span
+            aria-hidden
+            className="size-2 shrink-0 rounded-full"
+            style={{ backgroundColor: barColor(pool.driver) }}
+          />
+          <ProviderInstanceIcon
+            driverKind={pool.driver}
+            displayName={label}
+            className="size-4"
+            iconClassName="size-3.5 text-foreground/80"
+          />
+          {label}
+          {pool.accounts.length > 1 ? (
+            <span className="font-normal text-muted-foreground">
+              {pool.accounts.length} accounts
+            </span>
+          ) : null}
+        </h3>
+        {action}
+      </div>
       <div className="grid grid-cols-[auto_minmax(3rem,1fr)_auto] gap-x-3 text-xs">
         {displayLimitWindows(pool).map((window) => {
           const name = windowLabel(pool, window);
