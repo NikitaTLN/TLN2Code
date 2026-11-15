@@ -61,6 +61,7 @@ import { InlineButton } from "../ui/button";
 import {
   isProviderInstancePickerReady,
   isProviderInstancePickerVisible,
+  matchesLockedProvider as matchesProviderLock,
   shouldShowInstanceBadge,
   type ProviderInstanceEntry,
 } from "../../providerInstances";
@@ -495,12 +496,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
   const entryByInstanceId = new Map(instanceEntries.map((entry) => [entry.instanceId, entry]));
   const matchesLockedProvider = (
     entry: Pick<ProviderInstanceEntry, "driverKind" | "continuationGroupKey">,
-  ): boolean => {
-    if (lockedProvider === null) return true;
-    if (entry.driverKind !== lockedProvider) return false;
-    if (!lockedContinuationGroupKey) return true;
-    return entry.continuationGroupKey === lockedContinuationGroupKey;
-  };
+  ): boolean => matchesProviderLock(entry, lockedProvider, lockedContinuationGroupKey);
 
   const selectableUnavailableInstanceIds = (() => {
     const instanceIds = new Set<ProviderInstanceId>();

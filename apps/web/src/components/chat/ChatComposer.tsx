@@ -208,6 +208,7 @@ import {
 } from "./ComposerAttachmentStrip";
 import { ComposerPrimaryActions } from "./ComposerPrimaryActions";
 import { ComposerFooterPrimaryActions } from "./ComposerFooterControls";
+import { ComposerFavoriteModels } from "./ComposerFavoriteModels";
 import { ComposerUsageRing } from "./ComposerUsageRing";
 import { ComposerPendingUserInputPanel } from "./ComposerPendingUserInputPanel";
 import { resolveComposerMenuActiveItemId } from "./composerMenuHighlight";
@@ -3554,7 +3555,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
               <div
                 data-chat-composer-footer="true"
                 className={cn(
-                  "flex min-w-0 flex-nowrap items-center overflow-visible px-2 pb-2",
+                  "@container/composer-footer flex min-w-0 flex-nowrap items-center overflow-visible px-2 pb-2",
                   pendingUserInputs.length > 0 && "pt-2",
                   showMobilePendingAnswerActions &&
                     speechInput.state.phase === "idle" &&
@@ -3565,6 +3566,19 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                 <div className="me-2 empty:hidden">
                   <ComposerUsageRing />
                 </div>
+                {composerFooterHasWideActions ? null : (
+                  <ComposerFavoriteModels
+                    environmentId={environmentId}
+                    instanceEntries={providerInstanceEntries}
+                    modelOptionsByInstance={modelOptionsByInstance}
+                    selectedInstanceId={selectedInstanceId}
+                    selectedModel={selectedModel}
+                    lockedProvider={lockedProvider}
+                    lockedContinuationGroupKey={lockedContinuationGroupKey}
+                    getModelDisabledReason={getModelDisabledReason}
+                    onProviderModelSelect={onProviderModelSelect}
+                  />
+                )}
                 <div
                   data-chat-composer-actions="right"
                   data-chat-composer-transition-actions="true"

@@ -44,6 +44,18 @@ export interface ProviderInstanceEntry {
 }
 
 /** Disabled instances may retain ready status until reconciliation. */
+/** A thread that already ran is pinned to its provider and, when set, its continuation group. */
+export function matchesLockedProvider(
+  entry: Pick<ProviderInstanceEntry, "driverKind" | "continuationGroupKey">,
+  lockedProvider: ProviderDriverKind | null,
+  lockedContinuationGroupKey: string | null | undefined,
+): boolean {
+  if (lockedProvider === null) return true;
+  if (entry.driverKind !== lockedProvider) return false;
+  if (!lockedContinuationGroupKey) return true;
+  return entry.continuationGroupKey === lockedContinuationGroupKey;
+}
+
 export function isProviderInstancePickerReady(entry: ProviderInstanceEntry): boolean {
   return entry.enabled && entry.isAvailable && entry.status === "ready";
 }
