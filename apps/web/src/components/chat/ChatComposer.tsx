@@ -215,6 +215,7 @@ import {
 } from "./ComposerAttachmentStrip";
 import { CollapsedComposerStopAction, ComposerPrimaryActions } from "./ComposerPrimaryActions";
 import { ComposerFooterPrimaryActions } from "./ComposerFooterControls";
+import { ComposerScheduleSendButton } from "./ComposerScheduleSendButton";
 import { ComposerFavoriteModels } from "./ComposerFavoriteModels";
 import { ComposerUsageRing } from "./ComposerUsageRing";
 import { ComposerPendingUserInputPanel } from "./ComposerPendingUserInputPanel";
@@ -1186,6 +1187,23 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       (supportsQuestionAttachments &&
         activePendingProgress.activeQuestion?.allowCustomAnswer !== false));
   const composerFooterHasWideActions = activePendingProgress !== null;
+  // Scheduled tasks carry text only, so a draft with attachments or context chips sends now.
+  const scheduleSendThread =
+    routeKind === "server" &&
+    activeThread !== undefined &&
+    !activePendingProgress &&
+    !isEditingQueuedMessage &&
+    composerSendState.trimmedPrompt.length > 0 &&
+    composerSendState.trimmedPrompt === prompt.trim() &&
+    composerImages.length + composerFiles.length === 0 &&
+    composerTerminalContexts.length === 0 &&
+    composerPreviewAnnotations.length +
+      composerReviewComments.length +
+      composerThreadContexts.length +
+      composerEnvironmentContexts.length ===
+      0
+      ? activeThread
+      : null;
 
   const editPromptFromTraits = (edit: (prompt: string) => string) => {
     const currentPrompt = getComposerDraft(composerDraftTarget)?.prompt ?? "";
@@ -3763,6 +3781,18 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                   >
                     {composerControls}
                   </div>
+                  {scheduleSendThread && !dictationTakesFooter ? (
+                    <ComposerScheduleSendButton
+                      environmentId={environmentId}
+                      thread={scheduleSendThread}
+                      readPrompt={() => promptRef.current}
+                      onScheduled={() => {
+                        promptRef.current = "";
+                        setPrompt("");
+                        composerRef.current?.resetCursorState();
+                      }}
+                    />
+                  ) : null}
                   <ComposerFooterPrimaryActions
                     // Stop state belongs to one thread; the composer stays mounted across threads.
                     key={`${environmentId}:${activeThreadId ?? "new"}`}

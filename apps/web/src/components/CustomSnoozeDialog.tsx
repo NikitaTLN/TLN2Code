@@ -35,12 +35,31 @@ import {
 } from "./ui/dialog";
 
 type SnoozeChoice = { readonly snoozedUntil: string };
-type Request = { readonly resolve: (choice: SnoozeChoice | null) => void };
+export interface CustomTimeCopy {
+  readonly title: string;
+  readonly description: string;
+  readonly durationLabel: string;
+  readonly submitLabel: string;
+}
+type Request = {
+  readonly copy: CustomTimeCopy;
+  readonly resolve: (choice: SnoozeChoice | null) => void;
+};
 const useRequest = create<{ request: Request | null }>(() => ({ request: null }));
 
-export function requestCustomSnooze(): Promise<SnoozeChoice | null> {
+const SNOOZE_COPY: CustomTimeCopy = {
+  title: "Custom snooze",
+  description: "Choose when snoozed threads return to your inbox.",
+  durationLabel: "Snooze for",
+  submitLabel: "Snooze",
+};
+
+/** Asks for a future time; `snoozedUntil` is that time as an ISO string. */
+export function requestCustomSnooze(
+  copy: CustomTimeCopy = SNOOZE_COPY,
+): Promise<SnoozeChoice | null> {
   useRequest.getState().request?.resolve(null);
-  return new Promise((resolve) => useRequest.setState({ request: { resolve } }));
+  return new Promise((resolve) => useRequest.setState({ request: { copy, resolve } }));
 }
 
 function finish(choice: SnoozeChoice | null) {
@@ -59,10 +78,10 @@ export function CustomSnoozeDialogHost() {
   const request = useRequest((state) => state.request);
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- resolves any pending snooze request promise with null when the dialog host unmounts
   useEffect(() => () => finish(null), []);
-  return request ? <CustomSnoozeDialog /> : null;
+  return request ? <CustomSnoozeDialog copy={request.copy} /> : null;
 }
 
-function CustomSnoozeDialog() {
+function CustomSnoozeDialog({ copy }: { readonly copy: CustomTimeCopy }) {
   const id = useId();
   const navigate = useNavigate();
   const [initial] = useState(() => new Date(Date.now() + 3_600_000));
@@ -103,8 +122,8 @@ function CustomSnoozeDialog() {
           }}
         >
           <DialogHeader>
-            <DialogTitle>Custom snooze</DialogTitle>
-            <DialogDescription>Choose when snoozed threads return to your inbox.</DialogDescription>
+            <DialogTitle>{copy.title}</DialogTitle>
+            <DialogDescription>{copy.description}</DialogDescription>
           </DialogHeader>
           <DialogPanel>
             <div className="flex flex-col gap-4">
@@ -188,7 +207,7 @@ function CustomSnoozeDialog() {
                         setError(null);
                       }}
                     >
-                      <Label htmlFor={`${id}-amount`}>Snooze for</Label>
+                      <Label htmlFor={`${id}-amount`}>{copy.durationLabel}</Label>
                       <NumberFieldGroup>
                         <NumberFieldDecrement aria-label="Decrease duration" />
                         <NumberFieldInput required />
@@ -227,25 +246,27 @@ function CustomSnoozeDialog() {
             )}
           </DialogPanel>
           <DialogFooter>
-            <Button
-              type="button"
-              variant="ghost-muted"
-              className="sm:mr-auto"
-              onClick={() => {
-                finish(null);
-                void navigate({
-                  to: "/settings/threads",
-                  hash: "snooze-options",
-                });
-              }}
-            >
-              <Settings2Icon />
-              Edit snooze options
-            </Button>
+            {copy === SNOOZE_COPY ? (
+              <Button
+                type="button"
+                variant="ghost-muted"
+                className="sm:mr-auto"
+                onClick={() => {
+                  finish(null);
+                  void navigate({
+                    to: "/settings/threads",
+                    hash: "snooze-options",
+                  });
+                }}
+              >
+                <Settings2Icon />
+                Edit snooze options
+              </Button>
+            ) : null}
             <Button type="button" variant="outline" onClick={() => finish(null)}>
               Cancel
             </Button>
-            <Button type="submit">Snooze</Button>
+            <Button type="submit">{copy.submitLabel}</Button>
           </DialogFooter>
         </form>
       </DialogPopup>
