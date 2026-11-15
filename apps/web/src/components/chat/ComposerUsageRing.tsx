@@ -20,7 +20,6 @@ import { serverEnvironment } from "../../state/server";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { providerClients } from "../settings/providerDriverMeta";
 import { barColor } from "../usage/UsageLimits";
-import { Button } from "../ui/button";
 import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
 import { ComposerControl } from "./ComposerControl";
 import { ProviderInstanceIcon } from "./ProviderInstanceIcon";
@@ -89,13 +88,13 @@ export const ComposerUsageRing = memo(function ComposerUsageRing() {
       <PopoverPopup side="top" align="start" width="md" padding="compact">
         <div className="flex max-h-[min(28rem,60vh)] flex-col gap-3 overflow-y-auto">
           {pools.map((pool) => (
-            <PoolLimits key={pool.driver} pool={pool} now={now} />
+            <PoolLimits
+              key={pool.driver}
+              pool={pool}
+              now={now}
+              onOpenUsage={() => void navigate({ to: "/usage" })}
+            />
           ))}
-        </div>
-        <div className="mt-2 flex justify-end border-t border-border/60 pt-2">
-          <Button size="xs" variant="ghost" onClick={() => void navigate({ to: "/usage" })}>
-            Open usage
-          </Button>
         </div>
       </PopoverPopup>
     </Popover>
@@ -138,7 +137,15 @@ function UsageRingGlyph({ segments }: { readonly segments: readonly RingSegment[
   );
 }
 
-function PoolLimits({ pool, now }: { readonly pool: LimitPool; readonly now: number }) {
+function PoolLimits({
+  pool,
+  now,
+  onOpenUsage,
+}: {
+  readonly pool: LimitPool;
+  readonly now: number;
+  readonly onOpenUsage: () => void;
+}) {
   const label = providerLabel(pool.driver);
   return (
     <section className="flex flex-col gap-1">
@@ -173,6 +180,7 @@ function PoolLimits({ pool, now }: { readonly pool: LimitPool; readonly now: num
               tone={limitTone(left)}
               value={resetsIn ? `${left}% · ${resetsIn}` : `${left}%`}
               ariaValue={`${left}% left${resetsIn ? `, resets in ${resetsIn}` : ""}`}
+              onClick={onOpenUsage}
               tooltip={
                 <>
                   <span className="text-foreground">

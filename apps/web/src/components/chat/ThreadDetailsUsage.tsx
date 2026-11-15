@@ -187,6 +187,7 @@ export function UsageRow({
   ariaValue = value,
   tooltip,
   muted = false,
+  onClick,
 }: {
   readonly label: string;
   /** Bar fill from 0 to 100. Null hides the bar. */
@@ -198,16 +199,28 @@ export function UsageRow({
   readonly ariaValue?: string;
   readonly tooltip: ReactNode;
   readonly muted?: boolean;
+  readonly onClick?: () => void;
 }) {
+  const rowClassName =
+    "col-span-3 grid h-6 grid-cols-subgrid items-center rounded-lg px-2.5 text-start outline-none hover:bg-black/[0.035] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring data-popup-open:bg-black/[0.035] dark:hover:bg-white/[0.08] dark:data-popup-open:bg-white/[0.08]";
   return (
     <Tooltip>
       <TooltipTrigger
         render={
-          <div
-            tabIndex={0}
-            aria-label={`${label}: ${ariaValue}`}
-            className="col-span-3 grid h-6 cursor-default grid-cols-subgrid items-center rounded-lg px-2.5 outline-none hover:bg-black/[0.035] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring data-popup-open:bg-black/[0.035] dark:hover:bg-white/[0.08] dark:data-popup-open:bg-white/[0.08]"
-          />
+          onClick ? (
+            <button
+              type="button"
+              aria-label={`${label}: ${ariaValue}`}
+              onClick={onClick}
+              className={cn(rowClassName, "cursor-pointer")}
+            />
+          ) : (
+            <div
+              tabIndex={0}
+              aria-label={`${label}: ${ariaValue}`}
+              className={cn(rowClassName, "cursor-default")}
+            />
+          )
         }
       >
         <span className="max-w-28 truncate text-muted-foreground">{label}</span>
