@@ -30,7 +30,7 @@ const providerLabel = (driver: ServerProvider["driver"]) =>
   providerClients.get(driver)?.label ?? String(driver);
 
 const windowLabel = (pool: LimitPool, window: LimitPoolWindow) =>
-  (pool.driver === "cursor" ? cursorUsageWindowDetails(window.id)?.label : undefined) ??
+  (pool.driver === "cursor" ? cursorUsageWindowDetails(window.id, pool)?.label : undefined) ??
   window.label;
 
 interface RingSegment {

@@ -43,6 +43,11 @@ export interface ProviderInstanceEntry {
   readonly models: ReadonlyArray<ServerProviderModel>;
 }
 
+/** Status dots share one corner per user, so a badge on one row can't move only that row's dot. */
+export function hasInstanceBadge(entries: ReadonlyArray<ProviderInstanceEntry>): boolean {
+  return entries.some((entry) => shouldShowInstanceBadge(entry, entries));
+}
+
 /** Disabled instances may retain ready status until reconciliation. */
 /** A thread that already ran is pinned to its provider and, when set, its continuation group. */
 export function matchesLockedProvider(
