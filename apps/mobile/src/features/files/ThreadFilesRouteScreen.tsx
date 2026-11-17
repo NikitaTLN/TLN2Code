@@ -73,6 +73,7 @@ import {
   needsWorkspaceFileContents,
 } from "./filePath";
 import { useWorkspaceFileAssetUrlState } from "./workspaceFileAssetUrl";
+import { isXmlPreviewFile, xmlToMarkdown } from "@t3tools/shared/xmlMarkdown";
 
 function FilesBrowserHeader(props: {
   readonly projectName: string;
@@ -258,6 +259,7 @@ function FileContent(props: {
   const barOverlap = useContentTopInset();
   const reservedHeaderInset = props.truncated ? barOverlap : 0;
   const isMarkdown = isMarkdownPreviewFile(props.relativePath);
+  const isXml = isXmlPreviewFile(props.relativePath);
   const delimiter = filePreviewDelimiter({ name: props.relativePath });
   const isBrowserFile = isWorkspaceBrowserPreviewPath(props.relativePath);
   const isImageFile = isWorkspaceImagePreviewPath(props.relativePath);
@@ -336,11 +338,11 @@ function FileContent(props: {
       ) : null}
       {props.activeMode === "preview" && delimiter ? (
         <DelimitedFilePreview table={parseDelimitedPreview(props.fileContents, delimiter)} />
-      ) : props.activeMode === "preview" && isMarkdown ? (
+      ) : props.activeMode === "preview" && (isMarkdown || isXml) ? (
         <FileMarkdownPreview
           cwd={props.cwd}
           environmentId={props.environmentId}
-          markdown={props.fileContents}
+          markdown={isXml ? xmlToMarkdown(props.fileContents) : props.fileContents}
           relativePath={props.relativePath}
           threadId={props.threadId}
           onRefresh={props.onRefresh}
@@ -665,6 +667,7 @@ export function ThreadFileScreen(props: ThreadFileRouteScreenProps) {
   const canPreview =
     relativePath !== null &&
     (isMarkdownPreviewFile(relativePath) ||
+      isXmlPreviewFile(relativePath) ||
       isBrowserFile ||
       isImageFile ||
       isVideoFile ||

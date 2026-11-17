@@ -503,6 +503,10 @@
       "types": "./src/markdownFrontmatter.ts",
       "import": "./src/markdownFrontmatter.ts"
     },
+    "./xmlMarkdown": {
+      "types": "./src/xmlMarkdown.ts",
+      "import": "./src/xmlMarkdown.ts"
+    },
     "./markdownTaskList": {
       "types": "./src/markdownTaskList.ts",
       "import": "./src/markdownTaskList.ts"
@@ -608,6 +612,7 @@
     "remark-math": "6.0.0",
     "remark-parse": "catalog:",
     "remark-rehype": "catalog:",
+    "saxes": "6.0.0",
     "unified": "catalog:",
     "yaml": "catalog:"
   },

@@ -128,6 +128,7 @@ import {
   workspaceAssetResource,
 } from "./filePreviewMode";
 import { setMarkdownTaskChecked } from "@t3tools/shared/markdownTaskList";
+import { isXmlPreviewFile, xmlToMarkdown } from "@t3tools/shared/xmlMarkdown";
 import { changeFileSaveSession, useFileSaveSession } from "./fileSaveSessions";
 import { revisionedQuery } from "~/state/revisionedQuery";
 import {
@@ -171,6 +172,7 @@ const FILE_EXPLORER_STORAGE_KEY = "t3code.fileExplorerOpen";
 const RENDER_MARKDOWN_STORAGE_KEY = "t3code.renderMarkdown";
 const RENDER_BROWSER_FILE_STORAGE_KEY = "t3code.renderBrowserFile";
 const RENDER_TABLE_STORAGE_KEY = "t3code.renderTable";
+const RENDER_XML_STORAGE_KEY = "t3code.renderXml";
 type FilePostRender = <LAnnotation>(
   fileContainer: HTMLElement,
   instance: FileInstance<LAnnotation, undefined>,
@@ -1093,12 +1095,33 @@ function RenderedMarkdownSurface({
   );
 }
 
+function RenderedXmlSurface(props: {
+  cwd: string;
+  relativePath: string;
+  contents: string;
+  threadRef: ScopedThreadRef;
+  workspaceMutationId: string | null;
+}) {
+  return (
+    <ScrollArea className="min-h-0 flex-1" onKeyDown={selectRenderedContentOnSelectAll}>
+      <FileMarkdownPreview
+        text={xmlToMarkdown(props.contents)}
+        cwd={props.cwd}
+        relativePath={props.relativePath}
+        threadRef={props.threadRef}
+        workspaceMutationId={props.workspaceMutationId}
+      />
+    </ScrollArea>
+  );
+}
+
 function renderedToggleLabel(
-  mode: "markdown" | "mermaid" | "html" | "table",
+  mode: "markdown" | "mermaid" | "html" | "table" | "xml",
   rendered: boolean,
 ): string {
   if (mode === "mermaid") return rendered ? "Show Mermaid source" : "Show rendered diagram";
   if (mode === "markdown") return rendered ? "Show markdown source" : "Show rendered markdown";
+  if (mode === "xml") return rendered ? "Show XML source" : "Show rendered XML";
   if (mode === "table") return rendered ? "Show source" : "Show table";
   return rendered ? "Show HTML source" : "Show rendered page";
 }
@@ -1232,6 +1255,14 @@ export default function FilePreviewPanel({
   );
   const tableDelimiter =
     previewPath && attachment === undefined ? filePreviewDelimiter({ name: previewPath }) : null;
+  // A truncated XML file cannot parse, so it keeps the large-text viewer.
+  const isXml =
+    previewPath !== null && isXmlPreviewFile(previewPath) && file.data?.truncated !== true;
+  const [renderXmlPreferred, setRenderXmlPreferred] = useLocalStorage(
+    RENDER_XML_STORAGE_KEY,
+    false,
+    Schema.Boolean,
+  );
   const revealHandled =
     revealLine === null ||
     (handledReveal?.path === relativePath && handledReveal.requestId === revealRequestId);
@@ -1239,15 +1270,18 @@ export default function FilePreviewPanel({
   const renderMermaid = isMermaid && renderMermaidPreferred && revealHandled;
   const renderBrowserFile = isPdf || (isHtml && renderBrowserFilePreferred && revealHandled);
   const renderTable = tableDelimiter !== null && renderTablePreferred && revealHandled;
+  const renderXml = isXml && renderXmlPreferred && revealHandled;
   const renderedMode = isMermaid
     ? ("mermaid" as const)
     : isMarkdown
       ? ("markdown" as const)
       : tableDelimiter
         ? ("table" as const)
-        : isHtml
-          ? ("html" as const)
-          : null;
+        : isXml
+          ? ("xml" as const)
+          : isHtml
+            ? ("html" as const)
+            : null;
   const canToggleRendered =
     previewPath !== null && attachment === undefined && renderedMode !== null;
   const showsRawText =
@@ -1256,6 +1290,7 @@ export default function FilePreviewPanel({
     !(isMarkdown && renderMarkdown) &&
     !renderMermaid &&
     !(tableDelimiter && renderTable) &&
+    !renderXml &&
     !renderBrowserFile &&
     !isDocument;
   const mayOpenEditor =
@@ -1269,7 +1304,8 @@ export default function FilePreviewPanel({
     !renderBrowserFile &&
     !renderMermaid &&
     !(isMarkdown && renderMarkdown) &&
-    !(tableDelimiter && renderTable);
+    !(tableDelimiter && renderTable) &&
+    !renderXml;
   const contentFocusRef = useRef<HTMLDivElement>(null);
   const fileEditorRef = useRef<FileEditor | null>(null);
   const focusEditorFromContent = () => {
@@ -1313,14 +1349,18 @@ export default function FilePreviewPanel({
       ? renderMarkdown
       : tableDelimiter
         ? renderTable
-        : renderBrowserFile;
+        : isXml
+          ? renderXml
+          : renderBrowserFile;
   const setRenderedPreferred = isMermaid
     ? setRenderMermaidPreferred
     : isMarkdown
       ? setRenderMarkdownPreferred
       : tableDelimiter
         ? setRenderTablePreferred
-        : setRenderBrowserFilePreferred;
+        : isXml
+          ? setRenderXmlPreferred
+          : setRenderBrowserFilePreferred;
   const canOpenInBrowser =
     canOperatePreview &&
     previewPath !== null &&
@@ -1680,6 +1720,15 @@ export default function FilePreviewPanel({
                 workspaceMutationId={workspaceMutationId}
                 readOnly={file.data.truncated || isHostFile || !canWriteFiles}
                 onPendingChange={onPendingChange}
+              />
+            ) : renderXml ? (
+              <RenderedXmlSurface
+                key={relativePath}
+                cwd={cwd}
+                relativePath={relativePath}
+                threadRef={threadRef}
+                contents={file.data.contents}
+                workspaceMutationId={workspaceMutationId}
               />
             ) : tableDelimiter && renderTable ? (
               <DelimitedTablePreview
