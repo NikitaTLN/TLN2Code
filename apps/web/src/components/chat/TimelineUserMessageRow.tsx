@@ -32,6 +32,7 @@ import {
   isVideoAttachment,
 } from "../../types";
 import ChatMarkdown from "../ChatMarkdown";
+import { xmlPromptToMarkdown } from "@t3tools/shared/xmlMarkdown";
 import {
   CalendarClockIcon,
   ChevronDownIcon,
@@ -1222,7 +1223,7 @@ const UserMessageBody = memo(function UserMessageBody(props: {
   }
   return (
     <ChatMarkdown
-      text={props.text}
+      text={xmlPromptToMarkdown(props.text)}
       cwd={props.markdownCwd}
       threadRef={ctx.threadRef ?? undefined}
       skills={props.skills}

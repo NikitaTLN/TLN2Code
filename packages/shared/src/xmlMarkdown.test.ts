@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { xmlToMarkdown } from "./xmlMarkdown.ts";
+import { xmlPromptToMarkdown, xmlToMarkdown } from "./xmlMarkdown.ts";
 
 describe("xmlToMarkdown", () => {
   it("renders nested elements as headings, short leaves as a list, and dedents text", () => {
@@ -36,6 +36,78 @@ describe("xmlToMarkdown", () => {
   it("falls back to the source with the parse error when the XML is malformed", () => {
     expect(xmlToMarkdown("<a><b></a>")).toBe(
       "> **This XML could not be rendered:** 1:10: unexpected close tag.\n\n```xml\n<a><b></a>\n```",
+    );
+  });
+});
+
+describe("xmlPromptToMarkdown", () => {
+  it("renders prompt tags as nested sections and keeps their text as written", () => {
+    const prompt = [
+      "WARNING THIS IS A TEST",
+      "",
+      "<context>",
+      "I have a React todo app.",
+      "",
+      "<error>",
+      "Traceback (most recent call last):",
+      '  File "app.py", line 88, in refresh',
+      "</error>",
+      '  <repo name="todo">t3code</repo>',
+      "  <condition>x < 2</condition>",
+      "Unrelated paragraph.",
+      "</context>",
+      "",
+      "<instructions>",
+      "    Inspect the code.",
+      "</instructions>",
+    ].join("\n");
+    expect(xmlPromptToMarkdown(prompt)).toBe(
+      [
+        "WARNING THIS IS A TEST",
+        "",
+        "# context",
+        "",
+        "I have a React todo app.",
+        "",
+        "## error",
+        "",
+        "Traceback (most recent call last):",
+        '  File "app.py", line 88, in refresh',
+        "",
+        '- **repo** `name="todo"`: t3code',
+        "- **condition**: x < 2",
+        "",
+        "Unrelated paragraph.",
+        "",
+        "# instructions",
+        "",
+        "Inspect the code.",
+      ].join("\n"),
+    );
+  });
+
+  it("leaves code fences, HTML, unclosed tags, and plain prompts as written", () => {
+    const literal = [
+      "```xml",
+      "<context>",
+      "",
+      "",
+      "</context>",
+      "```",
+      "<div>",
+      "<b>bold</b>",
+      "<cite>Source</cite>",
+      "</div>",
+      '<review_comment sectionId="s" filePath="f.ts">',
+      "note",
+      "</review_comment>",
+      "<notes>",
+      "Use a < b here.",
+    ].join("\n");
+    expect(xmlPromptToMarkdown(literal)).toBe(literal);
+    expect(xmlPromptToMarkdown("Fix the </ bug")).toBe("Fix the </ bug");
+    expect(xmlPromptToMarkdown("    alpha\n\n\n    beta\n\n<task>Fix</task>\n```\ncode\n\n")).toBe(
+      "    alpha\n\n\n    beta\n\n- **task**: Fix\n\n```\ncode\n\n",
     );
   });
 });

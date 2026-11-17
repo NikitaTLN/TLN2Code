@@ -277,6 +277,7 @@ import {
 } from "../files/filePath";
 import { waitForThreadShell } from "./threadForkNavigation";
 import { resolveUserMessageIntentBadge } from "./userMessageIntentBadge";
+import { xmlPromptToMarkdown } from "@t3tools/shared/xmlMarkdown";
 import { fileChipClipboardPath, fileChipMenu, resolveFileChipTarget } from "./fileChipMenu";
 import { useFileChipShare } from "./useFileChipShare";
 import { useOpenLinkedThread } from "./useOpenLinkedThread";
@@ -2209,7 +2210,7 @@ function renderFeedEntry(
                       value={props.userBubbleMaxWidth - USER_BUBBLE_HORIZONTAL_PADDING * 2}
                     >
                       <UserMessageContent
-                        text={renderedText}
+                        text={xmlPromptToMarkdown(renderedText)}
                         environmentId={props.environmentId}
                         context={message.context}
                         markdownStyles={styles}
