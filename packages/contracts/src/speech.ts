@@ -77,6 +77,18 @@ export class CloudSpeechError extends Schema.TaggedError<CloudSpeechError>()(
   }
 }
 
+export class VoxtypeSpeechError extends Schema.TaggedError<VoxtypeSpeechError>()(
+  "VoxtypeSpeechError",
+  { reason: Schema.Literals(["not-installed", "failed"]) },
+  { httpApiStatus: 422 },
+) {
+  override get message() {
+    return this.reason === "not-installed"
+      ? "Voxtype isn’t installed on this environment. Install it or choose another destination in Settings → Voice."
+      : "Voxtype couldn’t transcribe this recording. Run `voxtype transcribe` on the environment to see why.";
+  }
+}
+
 export const SpeechModelId = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(160));
 export type SpeechModelId = typeof SpeechModelId.Type;
 

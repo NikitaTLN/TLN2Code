@@ -7,6 +7,7 @@ import {
   openSpeechStream,
   throwIfVoiceTranscriptionAborted,
   transcribeEnvironmentPcm,
+  transcribeVoxtypePcm,
   VoiceTranscriptionError,
   type VoiceTranscriptionOptions,
 } from "@t3tools/client-runtime/voice-input";
@@ -25,6 +26,8 @@ export function createBrowserVoiceInputPlatform(input: {
   readonly cloudProvider?: CloudSpeechProvider | undefined;
   /** The exact OpenRouter model the grant names; required with that provider. */
   readonly cloudModel?: CloudSpeechModelId | undefined;
+  /** Transcribe with the environment's `voxtype` CLI instead of its built-in models. */
+  readonly voxtype?: boolean | undefined;
   readonly hasAudioConsent: () => boolean;
   readonly getTranscriptionOptions: () => SpeechTranscriptionOptions;
   readonly getMicrophoneId: () => string | Promise<string>;
@@ -52,12 +55,14 @@ export function createBrowserVoiceInputPlatform(input: {
                 input.hasAudioConsent,
                 input.cloudModel,
               )
-            : transcribeEnvironmentPcm(
-                input.prepared,
-                pcm,
-                recordingOptions,
-                input.hasAudioConsent,
-              ),
+            : input.voxtype
+              ? transcribeVoxtypePcm(input.prepared, pcm, recordingOptions, input.hasAudioConsent)
+              : transcribeEnvironmentPcm(
+                  input.prepared,
+                  pcm,
+                  recordingOptions,
+                  input.hasAudioConsent,
+                ),
           { signal: transcriptionSignal },
         );
         throwIfVoiceTranscriptionAborted(transcriptionSignal);
@@ -72,6 +77,8 @@ export function createBrowserVoiceInputPlatform(input: {
         });
       }
     };
+    // Voxtype picks its own engine, model and language from its config.
+    if (input.voxtype) return { locale: "auto", transcribe: transcribeRecording };
     if (input.cloudProvider) {
       if (input.cloudProvider === "openrouter" && !input.cloudModel)
         throw new VoiceTranscriptionError({

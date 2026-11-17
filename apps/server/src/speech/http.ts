@@ -26,6 +26,7 @@ import {
 import * as SpeechPostProcessing from "./postProcessing.ts";
 import * as CloudSpeech from "./CloudSpeech.ts";
 import * as SpeechService from "./SpeechService.ts";
+import * as Voxtype from "./Voxtype.ts";
 
 const MAX_TRANSCRIBE_BODY_BYTES = SpeechService.MAX_SPEECH_BYTES + SPEECH_MAX_OPTIONS_BYTES + 4;
 const parseAudio = Option.liftThrowable(decodeSpeechPcmRequest);
@@ -71,6 +72,7 @@ export const speechHttpApiLayer = HttpApiBuilder.group(
     const speech = yield* SpeechService.SpeechService;
     const cloud = yield* CloudSpeech.CloudSpeech;
     const postProcessing = yield* SpeechPostProcessing.SpeechPostProcessing;
+    const voxtype = yield* Voxtype.Voxtype;
     const guard = Effect.fnUntraced(function* (
       endpoint: string,
       scope: AuthEnvironmentScope = AuthOrchestrationOperateScope,
@@ -123,6 +125,20 @@ export const speechHttpApiLayer = HttpApiBuilder.group(
                 SpeechInvalidAudioError: () => failEnvironmentInvalidRequest("invalid_audio"),
               }),
             );
+          return { text };
+        }),
+      )
+      .handle(
+        "transcribeVoxtype",
+        Effect.fn("environment.voice.transcribeVoxtype")(function* (args) {
+          yield* guard(args.endpoint.name);
+          const decoded = parseAudio(args.payload);
+          if (Option.isNone(decoded)) return yield* failEnvironmentInvalidRequest("invalid_audio");
+          const text = yield* voxtype.transcribe(decoded.value.pcm, decoded.value.options).pipe(
+            Effect.catchTags({
+              SpeechInvalidAudioError: () => failEnvironmentInvalidRequest("invalid_audio"),
+            }),
+          );
           return { text };
         }),
       )

@@ -41,7 +41,7 @@ const OpenRouterCatalog = Schema.Struct({
   data: Schema.Array(Schema.Struct({ id: Schema.String, name: Schema.optionalKey(Schema.String) })),
 });
 
-function wave(samples: Float32Array) {
+export function wave(samples: Float32Array) {
   const buffer = new ArrayBuffer(44 + samples.length * 2);
   const view = new DataView(buffer);
   const tag = (at: number, value: string) =>

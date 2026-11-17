@@ -45,6 +45,7 @@ import {
   RefreshCwIcon,
   SearchIcon,
   StarIcon,
+  TerminalIcon,
   Trash2Icon,
   UnlinkIcon,
   XIcon,
@@ -1200,7 +1201,8 @@ export function VoiceSettingsPanel() {
   } | null>(null);
   const { environments } = useEnvironments();
   const [microphones, setMicrophones] = useState<BrowserMicrophone[]>([]);
-  const prepared = destination.cloudProvider ? null : destination.prepared;
+  const voxtype = destination.voxtype === true;
+  const prepared = destination.cloudProvider || voxtype ? null : destination.prepared;
   const catalog = useVoiceModels(prepared);
 
   const refreshMicrophones = useStableCallback(async () => {
@@ -1249,11 +1251,21 @@ export function VoiceSettingsPanel() {
       })),
     }));
   const cloudChoices = cloudGroups.flatMap((group) => group.choices);
+  const voxtypeChoices = environments
+    .filter(
+      (environment) => environment.serverConfig?.environment.capabilities.voxtypeTranscription,
+    )
+    .map((environment) => ({
+      environment,
+      value: JSON.stringify(["voxtype", environment.environmentId]),
+    }));
   const destinationValue = destination.cloudProvider
     ? JSON.stringify(["cloud", destination.environmentId, destination.cloudProvider])
-    : destination.environmentId
-      ? JSON.stringify(["environment", destination.environmentId])
-      : OFF;
+    : voxtype
+      ? JSON.stringify(["voxtype", destination.environmentId])
+      : destination.environmentId
+        ? JSON.stringify(["environment", destination.environmentId])
+        : OFF;
   const cloudEnvironment = environments.find(
     (env) => env.environmentId === pendingCloud?.environmentId,
   );
@@ -1266,7 +1278,9 @@ export function VoiceSettingsPanel() {
   const chosenUnsupported =
     !destination.cloudProvider &&
     chosenEnvironment?.serverConfig != null &&
-    chosenEnvironment.serverConfig.environment.capabilities.voiceTranscription !== true;
+    chosenEnvironment.serverConfig.environment.capabilities[
+      voxtype ? "voxtypeTranscription" : "voiceTranscription"
+    ] !== true;
   const model = prepared && modelStatus?.supported ? modelStatus : null;
 
   return (
@@ -1357,8 +1371,12 @@ export function VoiceSettingsPanel() {
           title="Transcribe with"
           description={
             destination.environmentId && chosenUnsupported
-              ? `${chosenEnvironment.label} can’t transcribe audio locally. Choose another destination.`
-              : "Where your speech is turned into text."
+              ? voxtype
+                ? `Voxtype isn’t installed on ${chosenEnvironment.label}. Choose another destination.`
+                : `${chosenEnvironment.label} can’t transcribe audio locally. Choose another destination.`
+              : voxtype
+                ? "Voxtype uses the engine, model, and language from its own config."
+                : "Where your speech is turned into text."
           }
           control={
             <div className="flex w-full min-w-0 items-center gap-1.5 @min-[32rem]/settings-row:w-auto">
@@ -1376,7 +1394,13 @@ export function VoiceSettingsPanel() {
                   }
                   setPendingCloud(null);
                   const chosen = environmentChoices.find((choice) => choice.value === value);
+                  const chosenVoxtype = voxtypeChoices.find((choice) => choice.value === value);
                   if (value === OFF) chooseAudioDestination(null);
+                  else if (chosenVoxtype)
+                    chooseAudioDestination({
+                      kind: "voxtype",
+                      environmentId: chosenVoxtype.environment.environmentId,
+                    });
                   else if (chosen)
                     chooseAudioDestination({
                       kind: "environment",
@@ -1393,6 +1417,8 @@ export function VoiceSettingsPanel() {
                     <span className="flex min-w-0 items-center gap-2">
                       {destination.cloudProvider ? (
                         <CloudSpeechLogo provider={destination.cloudProvider} />
+                      ) : voxtype ? (
+                        <TerminalIcon aria-hidden className="size-4" />
                       ) : destination.environmentId ? (
                         <MonitorIcon aria-hidden className="size-4" />
                       ) : (
@@ -1401,12 +1427,14 @@ export function VoiceSettingsPanel() {
                       <span className="truncate">
                         {destination.cloudProvider
                           ? CLOUD_SPEECH_LABELS[destination.cloudProvider]
-                          : destination.environmentId
-                            ? (chosenEnvironment?.label ?? "Chosen environment (unavailable)")
-                            : "Off"}
-                        {destination.cloudProvider && (
+                          : voxtype
+                            ? "Voxtype"
+                            : destination.environmentId
+                              ? (chosenEnvironment?.label ?? "Chosen environment (unavailable)")
+                              : "Off"}
+                        {(destination.cloudProvider || voxtype) && (
                           <span className="text-muted-foreground">
-                            {" via "}
+                            {voxtype ? " on " : " via "}
                             {chosenEnvironment?.label ?? "unavailable environment"}
                           </span>
                         )}
@@ -1434,6 +1462,23 @@ export function VoiceSettingsPanel() {
                       ))}
                     </SelectGroup>
                   )}
+                  {voxtypeChoices.length > 0 && (
+                    <SelectGroup>
+                      <SelectGroupLabel>Voxtype</SelectGroupLabel>
+                      {voxtypeChoices.map(({ environment, value }) => (
+                        <SelectItem
+                          key={value}
+                          value={value}
+                          aria-label={`Voxtype on ${environment.label}`}
+                        >
+                          <span className="flex items-center gap-2">
+                            <TerminalIcon aria-hidden className="size-4" />
+                            {environment.label}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  )}
                   {cloudGroups.map(({ environment, choices }) => (
                     <SelectGroup key={environment.environmentId}>
                       <SelectGroupLabel>Cloud via {environment.label}</SelectGroupLabel>
@@ -1454,7 +1499,9 @@ export function VoiceSettingsPanel() {
                   {destination.environmentId &&
                   (!chosenEnvironment ||
                     (destination.cloudProvider &&
-                      !cloudChoices.some((option) => option.value === destinationValue))) ? (
+                      !cloudChoices.some((option) => option.value === destinationValue)) ||
+                    (voxtype &&
+                      !voxtypeChoices.some((option) => option.value === destinationValue))) ? (
                     <SelectItem value={destinationValue}>
                       Chosen environment (unavailable)
                     </SelectItem>
@@ -1541,12 +1588,14 @@ export function VoiceSettingsPanel() {
           description={
             destination.cloudProvider === "openai"
               ? "OpenAI handles silence itself."
-              : "Skip silence and background noise before transcribing."
+              : voxtype
+                ? "Voxtype handles silence with its own settings."
+                : "Skip silence and background noise before transcribing."
           }
           control={
             <Switch
               aria-label="Silence filtering"
-              disabled={destination.cloudProvider === "openai"}
+              disabled={destination.cloudProvider === "openai" || voxtype}
               checked={settings.speechSilenceFiltering}
               onCheckedChange={(checked) =>
                 void updateClientSettings({ speechSilenceFiltering: checked })

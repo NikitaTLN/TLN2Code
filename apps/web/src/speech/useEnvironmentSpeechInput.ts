@@ -123,20 +123,24 @@ export function useVoiceTranscriptionDestination() {
   const cloud = grant?.destination.kind === "cloud" ? grant.destination : undefined;
   const provider = cloud?.provider;
   const model = cloud?.provider === "openrouter" ? cloud.model : undefined;
+  const voxtype = grant?.destination.kind === "voxtype";
   const supported =
     environment?.serverConfig?.environment.capabilities[
-      provider ? "cloudVoiceTranscription" : "voiceTranscription"
+      provider ? "cloudVoiceTranscription" : voxtype ? "voxtypeTranscription" : "voiceTranscription"
     ] === true;
   return {
     ...(hydrated && choice === null ? { offerFirstRunSetup: true } : {}),
     environmentId,
     ...(provider ? { cloudProvider: provider } : {}),
     ...(model ? { cloudModel: model } : {}),
+    ...(voxtype ? { voxtype: true } : {}),
     grantId: grant?.id ?? null,
     label:
       provider && environment
         ? `${CLOUD_SPEECH_LABELS[provider]} via ${environment.label}`
-        : (environment?.label ?? null),
+        : voxtype && environment
+          ? `Voxtype on ${environment.label}`
+          : (environment?.label ?? null),
     prepared: supported && canDictate ? connection : null,
   };
 }
@@ -148,6 +152,9 @@ export function useEnvironmentSpeechInput(input: HookInput) {
   const grantId = destination.grantId;
   const cloudProvider = destination.cloudProvider;
   const cloudModel = destination.cloudModel;
+  const voxtype = destination.voxtype === true;
+  // Cloud providers and Voxtype bring their own models, so there is no local status or setup.
+  const externalEngine = cloudProvider !== undefined || voxtype;
   const draftCapabilities = useEnvironment(input.environmentId)?.serverConfig?.environment
     .capabilities;
   const originatingConnection = Option.getOrNull(usePreparedConnection(input.environmentId));
@@ -234,6 +241,7 @@ export function useEnvironmentSpeechInput(input: HookInput) {
       prepared,
       cloudProvider,
       cloudModel,
+      voxtype,
       hasAudioConsent,
       getTranscriptionOptions: (): SpeechTranscriptionOptions => {
         const {
@@ -347,11 +355,11 @@ export function useEnvironmentSpeechInput(input: HookInput) {
       controller.dispose();
       if (controllerRef.current === controller) controllerRef.current = null;
     };
-  }, [prepared, grantId, cloudProvider, cloudModel]);
+  }, [prepared, grantId, cloudProvider, cloudModel, voxtype]);
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- probes the chosen environment's speech status once its connection is available
   useEffect(() => {
-    if (!prepared || cloudProvider) return;
+    if (!prepared || externalEngine) return;
     let disposed = false;
     void probeSpeechStatus(prepared)
       .then((value) => {
@@ -363,8 +371,8 @@ export function useEnvironmentSpeechInput(input: HookInput) {
     return () => {
       disposed = true;
     };
-  }, [prepared, cloudProvider]);
-  const currentStatus = !cloudProvider && status?.prepared === prepared ? status.value : null;
+  }, [prepared, externalEngine]);
+  const currentStatus = !externalEngine && status?.prepared === prepared ? status.value : null;
   const setupModelId = setup.model?.id;
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- polls download progress while the setup dialog owns an active model download
@@ -460,7 +468,7 @@ export function useEnvironmentSpeechInput(input: HookInput) {
     const controller = controllerRef.current;
     const owner = latestRef.current.input.ownerKey;
     if (!controller || !prepared) return;
-    if (cloudProvider) {
+    if (externalEngine) {
       setLevel(0);
       await controller.start();
       return;
@@ -568,8 +576,7 @@ export function useEnvironmentSpeechInput(input: HookInput) {
     grantId === null
       ? Boolean(destination.offerFirstRunSetup) && input.offerSetup !== false
       : prepared !== null &&
-        (cloudProvider !== undefined ||
-          (status?.prepared === prepared && status.value?.supported !== false));
+        (externalEngine || (status?.prepared === prepared && status.value?.supported !== false));
   return {
     available:
       destinationReady &&

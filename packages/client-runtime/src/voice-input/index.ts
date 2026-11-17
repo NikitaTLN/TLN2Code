@@ -19,6 +19,7 @@ export {
   requireCloudSpeechKey,
   setCloudSpeechKey,
   transcribeCloudPcm,
+  transcribeVoxtypePcm,
   getEnvironmentSpeechStatus,
   getEnvironmentSpeechStreamUrl,
   linkEnvironmentSpeechModels,

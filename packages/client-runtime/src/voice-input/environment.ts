@@ -2,7 +2,7 @@ import { encodeSpeechPcmRequest } from "@t3tools/shared/speech";
 import * as Effect from "effect/Effect";
 import * as Redacted from "effect/Redacted";
 import * as Schema from "effect/Schema";
-import { CloudSpeechError, SPEECH_STREAM_PATH } from "@t3tools/contracts";
+import { CloudSpeechError, SPEECH_STREAM_PATH, VoxtypeSpeechError } from "@t3tools/contracts";
 import type {
   CloudSpeechModelId,
   CloudSpeechProvider,
@@ -25,6 +25,7 @@ import { VoiceTranscriptionError } from "./transcription.ts";
 
 const INFERENCE_OR_DOWNLOAD_TIMEOUT_MS = 30 * 60_000;
 const isCloudSpeechError = Schema.is(CloudSpeechError);
+const isVoxtypeSpeechError = Schema.is(VoxtypeSpeechError);
 type EnvironmentApiClient<G extends "voice" | "auth"> = Effect.Success<
   ReturnType<typeof makeEnvironmentHttpApiGroupClient<G>>
 >;
@@ -158,6 +159,32 @@ export const transcribeCloudPcm = (
     ),
   );
 };
+
+export const transcribeVoxtypePcm = (
+  prepared: PreparedConnection,
+  pcm: Uint8Array,
+  options: SpeechTranscriptionOptions,
+  canSend: () => boolean,
+) =>
+  request({
+    group: "voice",
+    prepared,
+    method: "POST",
+    canSend,
+    timeoutMs: 130_000,
+    path: (urls) => urls.transcribeVoxtype(),
+    run: ({ client, headers }) =>
+      client.transcribeVoxtype({ headers, payload: encodeSpeechPcmRequest(pcm, options) }),
+  }).pipe(
+    Effect.mapError((error) =>
+      error._tag === "RemoteEnvironmentAuthFetchError" && isVoxtypeSpeechError(error.cause)
+        ? new VoiceTranscriptionError({
+            code: "transcription-failed",
+            message: error.cause.message,
+          })
+        : error,
+    ),
+  );
 
 export const getEnvironmentSpeechStreamUrl = (prepared: PreparedConnection) => {
   let endpoint = prepared.httpBaseUrl;

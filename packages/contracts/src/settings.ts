@@ -399,6 +399,8 @@ export const VoiceTranscriptionDestination = Schema.Union([
     provider: Schema.Literal("openrouter"),
     model: CloudSpeechModelId,
   }),
+  /** The environment runs the `voxtype` CLI, which uses its own engine and config. */
+  Schema.Struct({ kind: Schema.Literal("voxtype"), environmentId: EnvironmentId }),
 ]);
 export type VoiceTranscriptionDestination = typeof VoiceTranscriptionDestination.Type;
 

@@ -55,6 +55,7 @@ import {
 import {
   CloudSpeechApiKey,
   CloudSpeechError,
+  VoxtypeSpeechError,
   CloudSpeechKeys,
   CloudSpeechModelId,
   CloudSpeechModels,
@@ -880,6 +881,20 @@ export class EnvironmentVoiceHttpApi extends HttpApiGroup.make("voice")
         ...EnvironmentScopedOperationErrors,
         EnvironmentRequestInvalidError,
         CloudSpeechError,
+      ],
+    })
+      .middleware(EnvironmentVoiceBodyLimit)
+      .middleware(EnvironmentAuthenticatedAuth),
+  )
+  .add(
+    HttpApiEndpoint.post("transcribeVoxtype", "/api/voice/voxtype/transcribe", {
+      headers: OptionalBearerHeaders,
+      payload: Schema.Uint8Array.pipe(HttpApiSchema.asUint8Array()),
+      success: EnvironmentSpeechTranscriptionResult,
+      error: [
+        ...EnvironmentScopedOperationErrors,
+        EnvironmentRequestInvalidError,
+        VoxtypeSpeechError,
       ],
     })
       .middleware(EnvironmentVoiceBodyLimit)

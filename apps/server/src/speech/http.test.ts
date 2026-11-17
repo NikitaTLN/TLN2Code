@@ -16,6 +16,7 @@ import {
   EnvironmentAuthenticatedAuth,
   EnvironmentAuthenticatedPrincipal,
   EnvironmentVoiceHttpApi,
+  VoxtypeSpeechError,
 } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -28,6 +29,7 @@ import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder";
 import type * as NetAddress from "effect/net/NetAddress";
 import * as SpeechService from "./SpeechService.ts";
 import * as CloudSpeech from "./CloudSpeech.ts";
+import * as Voxtype from "./Voxtype.ts";
 import * as ServerSettings from "../serverSettings.ts";
 import * as TextGeneration from "../textGeneration/TextGeneration.ts";
 import * as ProviderRegistry from "../provider/ProviderRegistry.ts";
@@ -49,6 +51,9 @@ const principal = (...scopes: AuthEnvironmentScope[]) =>
 
 const dependencies = Layer.mergeAll(
   Layer.mock(CloudSpeech.CloudSpeech)({}),
+  Layer.mock(Voxtype.Voxtype)({
+    transcribe: () => Effect.fail(new VoxtypeSpeechError({ reason: "not-installed" })),
+  }),
   Layer.mock(ProviderRegistry.ProviderRegistry)({ getProviders: Effect.succeed([]) }),
   Layer.mock(ServerSettings.ServerSettingsService)({
     getSettings: Effect.succeed(DEFAULT_SERVER_SETTINGS),
@@ -253,6 +258,14 @@ effectIt.effect(
         422,
       );
       expect(transcribe).toHaveBeenLastCalledWith("openrouter", "acme/transcribe-1");
+      const voxtype = yield* Effect.promise(() =>
+        handler(new Request("http://localhost/api/voice/voxtype/transcribe", audio), context),
+      );
+      expect(voxtype.status).toBe(422);
+      expect(yield* Effect.promise(() => voxtype.json())).toEqual({
+        _tag: "VoxtypeSpeechError",
+        reason: "not-installed",
+      });
       // Naming a path on the environment needs filesystem access, not only settings access.
       const link = yield* Effect.promise(() =>
         handler(

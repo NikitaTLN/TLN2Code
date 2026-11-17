@@ -14,6 +14,7 @@ import {
   transcribeCloudPcm,
   getEnvironmentSpeechStatus,
   transcribeEnvironmentPcm,
+  transcribeVoxtypePcm,
   VoiceTranscriptionError,
 } from "@t3tools/client-runtime/voice-input";
 import { FetchHttpClient, type HttpClient } from "effect/http";
@@ -60,15 +61,23 @@ export function chooseVoiceDestination(
   provider?: CloudSpeechProvider,
   model?: CloudSpeechModelId,
 ) {
-  choiceRevision++;
-  // A failed change must not leave the old destination armed in this session.
-  appAtomRegistry.set(choice, null);
-  const destination: VoiceTranscriptionDestination | null =
+  applyVoiceDestination(
     environmentId === null
       ? null
       : provider
         ? cloudVoiceDestination(environmentId, provider, model)
-        : { kind: "environment", environmentId };
+        : { kind: "environment", environmentId },
+  );
+}
+
+export function chooseVoxtypeDestination(environmentId: EnvironmentId) {
+  applyVoiceDestination({ kind: "voxtype", environmentId });
+}
+
+function applyVoiceDestination(destination: VoiceTranscriptionDestination | null) {
+  choiceRevision++;
+  // A failed change must not leave the old destination armed in this session.
+  appAtomRegistry.set(choice, null);
   const grant: VoiceGrant | null = destination && { id: uuidv4(), destination };
   writeVoiceGrant(grant);
   appAtomRegistry.set(choice, grant);
@@ -90,7 +99,9 @@ const native = requireOptionalNativeModule<{
 }>("T3VoiceTranscription");
 export const hasEnvironmentVoiceCapture = typeof native?.decodeRecording === "function";
 
-const voiceConnections = (capability: "voiceTranscription" | "cloudVoiceTranscription") =>
+const voiceConnections = (
+  capability: "voiceTranscription" | "cloudVoiceTranscription" | "voxtypeTranscription",
+) =>
   Atom.family((id: EnvironmentId) =>
     Atom.make((get) => {
       const environment = get(environmentPresentations.presentationAtom(id));
@@ -109,6 +120,7 @@ const voiceConnections = (capability: "voiceTranscription" | "cloudVoiceTranscri
   );
 export const voiceConnectionAtom = voiceConnections("voiceTranscription");
 export const cloudVoiceConnectionAtom = voiceConnections("cloudVoiceTranscription");
+export const voxtypeVoiceConnectionAtom = voiceConnections("voxtypeTranscription");
 
 // React Native's XMLHttpRequest fetch follows redirects. Expo's native transport honors redirect: "error".
 export function runSpeech<A, E>(
@@ -139,6 +151,7 @@ function environmentTranscriber(
   prepared: PreparedConnection,
   canSend: () => boolean,
   cloud?: CloudDestination,
+  voxtype = false,
 ) {
   const provider = cloud?.provider;
   const model = cloud?.provider === "openrouter" ? cloud.model : undefined;
@@ -149,6 +162,8 @@ function environmentTranscriber(
         await runSpeech(requireCloudSpeechKey(prepared, provider), signal, canSend);
         return "auto";
       }
+      // Voxtype picks its own engine, model and language from its config.
+      if (voxtype) return "auto";
       const status = await runSpeech(getEnvironmentSpeechStatus(prepared), signal, canSend);
       if (!status.supported)
         throw new VoiceTranscriptionError({ code: "unavailable", message: status.reason });
@@ -188,12 +203,14 @@ function environmentTranscriber(
                 canSend,
                 model,
               )
-            : transcribeEnvironmentPcm(
-                prepared,
-                pcm,
-                DEFAULT_SPEECH_TRANSCRIPTION_OPTIONS,
-                canSend,
-              ),
+            : voxtype
+              ? transcribeVoxtypePcm(prepared, pcm, DEFAULT_SPEECH_TRANSCRIPTION_OPTIONS, canSend)
+              : transcribeEnvironmentPcm(
+                  prepared,
+                  pcm,
+                  DEFAULT_SPEECH_TRANSCRIPTION_OPTIONS,
+                  canSend,
+                ),
           signal,
           canSend,
         )
@@ -244,9 +261,10 @@ export const voiceRouteAtom = Atom.make((get) => {
   const grant = get(voiceGrantAtom);
   if (!grant) return null;
   const cloud = grant.destination.kind === "cloud" ? grant.destination : undefined;
-  const connectionAtom = (cloud ? cloudVoiceConnectionAtom : voiceConnectionAtom)(
-    grant.destination.environmentId,
-  );
+  const voxtype = grant.destination.kind === "voxtype";
+  const connectionAtom = (
+    cloud ? cloudVoiceConnectionAtom : voxtype ? voxtypeVoiceConnectionAtom : voiceConnectionAtom
+  )(grant.destination.environmentId);
   const connection = get(connectionAtom);
   const registry = get.registry;
   return {
@@ -256,6 +274,7 @@ export const voiceRouteAtom = Atom.make((get) => {
         connection,
         () => registry.get(voiceGrantAtom) === grant && registry.get(connectionAtom) === connection,
         cloud,
+        voxtype,
       ),
   };
 });

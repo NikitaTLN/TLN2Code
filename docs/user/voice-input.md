@@ -47,6 +47,13 @@ Vocabulary hints are not sent to OpenRouter; dictionary spellings are applied
 after transcription. If OpenRouter stops listing your model, dictation stops
 until you choose another.
 
+If [Voxtype](https://voxtype.io) is installed on an environment, **Transcribe with**
+also lists it under **Voxtype** (on mobile, under **Method on** that environment).
+The environment runs `voxtype transcribe` on each recording, so Voxtype's own
+engine, model, and language settings apply, and nothing leaves that machine.
+Your dictionary spellings and filler-word removal still apply afterwards. Install
+Voxtype before starting T3 Code, or restart it afterwards, so the option appears.
+
 ## Set up a model
 
 In **Settings → Voice → Transcription**, download a model and choose **Use model** if it

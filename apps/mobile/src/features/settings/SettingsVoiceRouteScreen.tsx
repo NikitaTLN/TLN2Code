@@ -24,8 +24,10 @@ import * as Dialog from "../../components/ui/Dialog";
 import { useEnvironments, type EnvironmentPresentation } from "../../state/environments";
 import {
   chooseVoiceDestination,
+  chooseVoxtypeDestination,
   cloudVoiceConnectionAtom,
   voiceConnectionAtom,
+  voxtypeVoiceConnectionAtom,
   voiceGrantAtom,
   hasEnvironmentVoiceCapture,
 } from "../voice-input/voiceDestination";
@@ -114,9 +116,10 @@ const UNAVAILABLE_EXPLANATION =
     ? "Dictation on this device needs Android 12 or later and Google speech services that support your language. Your keyboard’s voice typing is separate."
     : "Dictation on this device needs iOS 26 or later, a supported device, and a supported language. Your keyboard’s dictation is separate.";
 
-function saveDestination(id: EnvironmentId | null) {
+function saveDestination(id: EnvironmentId | null, voxtype = false) {
   try {
-    chooseVoiceDestination(id);
+    if (voxtype && id) chooseVoxtypeDestination(id);
+    else chooseVoiceDestination(id);
   } catch {
     Dialog.alert(
       "Could not save transcription choice",
@@ -137,7 +140,8 @@ function EnvironmentChoice({
 }) {
   const local = useAtomValue(voiceConnectionAtom(environment.environmentId)) !== null;
   const cloud = useAtomValue(cloudVoiceConnectionAtom(environment.environmentId)) !== null;
-  const usable = local || cloud;
+  const voxtype = useAtomValue(voxtypeVoiceConnectionAtom(environment.environmentId)) !== null;
+  const usable = local || cloud || voxtype;
   return (
     <ListChoiceRow
       label={environment.label}
@@ -153,12 +157,12 @@ function EnvironmentChoice({
       separated
       onPress={() => {
         if (selected) return;
-        if (!local) return onCloudOnly();
+        if (!local && !voxtype) return onCloudOnly();
         Dialog.confirm({
           title: `Send microphone audio to ${environment.label}?`,
           message: `Finished recordings will be sent to ${environment.displayUrl ?? environment.label} for transcription. You can switch back to This device at any time.`,
           confirmText: "Use environment",
-          onConfirm: () => saveDestination(environment.environmentId),
+          onConfirm: () => saveDestination(environment.environmentId, !local),
         });
       }}
     />
@@ -182,6 +186,9 @@ function EnvironmentMethodSection({
   const cloudCapable =
     environment.serverConfig?.environment.capabilities.cloudVoiceTranscription === true ||
     destination?.kind === "cloud";
+  const voxtypeCapable =
+    environment.serverConfig?.environment.capabilities.voxtypeTranscription === true ||
+    destination?.kind === "voxtype";
   return (
     <SettingsSection title={`Method on ${environment.label}`}>
       <LocalModelChoice
@@ -191,6 +198,15 @@ function EnvironmentMethodSection({
         // The user already agreed to send audio to this environment.
         onSelect={() => saveDestination(id)}
       />
+      {voxtypeCapable ? (
+        <ListChoiceRow
+          label="Voxtype"
+          description="Uses the engine, model, and language from Voxtype’s own config."
+          selected={destination?.kind === "voxtype"}
+          separated
+          onPress={() => saveDestination(id, true)}
+        />
+      ) : null}
       {cloudCapable ? (
         <CloudVoiceChoice
           environment={environment}
