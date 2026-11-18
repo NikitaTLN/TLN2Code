@@ -6,15 +6,17 @@ import {
   collectLimitPools,
   cursorUsageWindowDetails,
   displayLimitWindows,
-  formatDuration,
   type LimitPool,
   type LimitPoolWindow,
   tightestLimitWindow,
 } from "@t3tools/shared/usageLimits";
+import { formatDuration } from "@t3tools/shared/usageLimitsCopy";
 import { useNavigate } from "@tanstack/react-router";
+import { useGT } from "gt-react";
 import { memo, type ReactNode, useState } from "react";
 
 import { useNowMinute } from "../../hooks/useNowMinute";
+import { m } from "../../i18n/messages";
 import { environmentPresentations } from "../../state/presentation";
 import { serverEnvironment } from "../../state/server";
 import { useAtomCommand } from "../../state/use-atom-command";
@@ -42,6 +44,7 @@ interface RingSegment {
 
 /** One arc per provider across enabled environments, filled by its tightest window's quota left. */
 export const ComposerUsageRing = memo(function ComposerUsageRing() {
+  const gt = useGT();
   const presentations = useAtomValue(environmentPresentations.presentationsWithProvidersAtom);
   const nowMinute = useNowMinute();
   const now = Date.parse(`${nowMinute}:00Z`);
@@ -88,7 +91,11 @@ export const ComposerUsageRing = memo(function ComposerUsageRing() {
         delay={150}
         closeDelay={200}
         render={
-          <ComposerControl size="sm" className="px-1" aria-label={`Usage limits. ${summary}`} />
+          <ComposerControl
+            size="sm"
+            className="px-1"
+            aria-label={gt("Usage limits. {summary}", { summary })}
+          />
         }
       >
         <UsageRingGlyph segments={segments} />
@@ -107,8 +114,8 @@ export const ComposerUsageRing = memo(function ComposerUsageRing() {
                     size="icon-micro"
                     variant="ghost"
                     className="ml-auto"
-                    aria-label="Refresh usage limits"
-                    title="Refresh usage limits"
+                    aria-label={gt("Refresh usage limits")}
+                    title={gt("Refresh usage limits")}
                     disabled={refreshing}
                     onClick={refreshNow}
                   >
@@ -171,6 +178,7 @@ function PoolLimits({
   readonly onOpenUsage: () => void;
   readonly action: ReactNode;
 }) {
+  const gt = useGT();
   const label = providerLabel(pool.driver);
   return (
     <section className="flex flex-col gap-1">
@@ -201,7 +209,7 @@ function PoolLimits({
           const name = windowLabel(pool, window);
           const left = window.remainingPercent;
           const reset = window.resets.find((entry) => entry.at > now);
-          const resetsIn = reset ? formatDuration(reset.at - now) : null;
+          const resetsIn = reset ? formatDuration(reset.at - now, m) : null;
           return (
             <UsageRow
               key={`${window.kind}:${window.id}`}
@@ -209,15 +217,21 @@ function PoolLimits({
               fill={left}
               tone={limitTone(left)}
               value={resetsIn ? `${left}% · ${resetsIn}` : `${left}%`}
-              ariaValue={`${left}% left${resetsIn ? `, resets in ${resetsIn}` : ""}`}
+              ariaValue={
+                resetsIn
+                  ? gt("{left}% left, resets in {resetsIn}", { left, resetsIn })
+                  : gt("{left}% left", { left })
+              }
               onClick={onOpenUsage}
               tooltip={
                 <>
                   <span className="text-foreground">
-                    {name}: {left}% left
+                    {gt("{name}: {left}% left", { name, left })}
                   </span>
                   {resetsIn ? (
-                    <span className="text-muted-foreground">Resets in {resetsIn}</span>
+                    <span className="text-muted-foreground">
+                      {gt("Resets in {resetsIn}", { resetsIn })}
+                    </span>
                   ) : null}
                 </>
               }

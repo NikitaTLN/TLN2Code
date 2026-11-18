@@ -1,3 +1,4 @@
+import { useGT } from "gt-react";
 import {
   closestCenter,
   type CollisionDetection,
@@ -79,6 +80,7 @@ export const ComposerFavoriteModels = memo(function ComposerFavoriteModels(props
   readonly getModelDisabledReason: (instanceId: ProviderInstanceId, model: string) => string | null;
   readonly onSelect: (instanceId: ProviderInstanceId, model: string) => void;
 }) {
+  const gt = useGT();
   const { favorites: savedFavorites } = useEnvironmentModelPreferences(props.environmentId);
   const saveModelPreferences = useUpdateEnvironmentModelPreferences(props.environmentId);
   // Shows a dropped order until the saved favorites change, so the chip does not snap back.
@@ -146,7 +148,7 @@ export const ComposerFavoriteModels = memo(function ComposerFavoriteModels(props
     // fit wrap to a clipped second line, so only whole chips show.
     <div
       role="group"
-      aria-label="Starred models"
+      aria-label={gt("Starred models")}
       className="me-2 flex h-7 min-w-0 flex-[1000_1_0%] flex-wrap items-center gap-x-0.5 gap-y-4 overflow-clip"
     >
       {/* Lets the first chip wrap away too; a flex line otherwise always keeps one item. */}
