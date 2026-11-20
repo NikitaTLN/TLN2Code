@@ -6,12 +6,12 @@ import {
   collectLimitPools,
   cursorUsageWindowDetails,
   displayLimitWindows,
-  formatDuration,
   type LimitPool,
   type LimitPoolWindow,
   tightestLimitWindow,
 } from "@t3tools/shared/usageLimits";
-import { useNavigate } from "@tanstack/react-router";
+import { formatDuration } from "@t3tools/shared/usageLimitsCopy";
+import { useGT, useMessages } from "gt-react";
 import { memo, type ReactNode, useState } from "react";
 
 import { useNowMinute } from "../../hooks/useNowMinute";
@@ -48,8 +48,8 @@ export const ComposerUsageRing = memo(function ComposerUsageRing() {
   const refreshProviders = useAtomCommand(serverEnvironment.refreshProviders, {
     reportFailure: false,
   });
-  const navigate = useNavigate();
   const [refreshing, setRefreshing] = useState(false);
+  const gt = useGT();
   const pools = collectLimitPools(collectLimitAccounts(presentations), now);
   const segments = pools.flatMap((pool): RingSegment[] => {
     const tightest = tightestLimitWindow(pool);
@@ -60,7 +60,12 @@ export const ComposerUsageRing = memo(function ComposerUsageRing() {
   if (segments.length === 0) return null;
 
   const summary = segments
-    .map((segment) => `${providerLabel(segment.driver)} ${segment.left}% left`)
+    .map((segment) =>
+      gt("{provider} {left}% left", {
+        provider: providerLabel(segment.driver),
+        left: segment.left,
+      }),
+    )
     .join(", ");
   // Opening refreshes automatically, which the shared throttle skips after a recent read.
   const refresh = (automatic: boolean) =>
@@ -88,7 +93,11 @@ export const ComposerUsageRing = memo(function ComposerUsageRing() {
         delay={150}
         closeDelay={200}
         render={
-          <ComposerControl size="sm" className="px-1" aria-label={`Usage limits. ${summary}`} />
+          <ComposerControl
+            size="sm"
+            className="px-1"
+            aria-label={gt("Usage limits. {summary}", { summary })}
+          />
         }
       >
         <UsageRingGlyph segments={segments} />
@@ -100,15 +109,14 @@ export const ComposerUsageRing = memo(function ComposerUsageRing() {
               key={pool.driver}
               pool={pool}
               now={now}
-              onOpenUsage={() => void navigate({ to: "/usage" })}
               action={
                 index === 0 ? (
                   <Button
                     size="icon-micro"
                     variant="ghost"
                     className="ml-auto"
-                    aria-label="Refresh usage limits"
-                    title="Refresh usage limits"
+                    aria-label={gt("Refresh usage limits")}
+                    title={gt("Refresh usage limits")}
                     disabled={refreshing}
                     onClick={refreshNow}
                   >
@@ -163,14 +171,14 @@ function UsageRingGlyph({ segments }: { readonly segments: readonly RingSegment[
 function PoolLimits({
   pool,
   now,
-  onOpenUsage,
   action,
 }: {
   readonly pool: LimitPool;
   readonly now: number;
-  readonly onOpenUsage: () => void;
   readonly action: ReactNode;
 }) {
+  const m = useMessages();
+  const gt = useGT();
   const label = providerLabel(pool.driver);
   return (
     <section className="flex flex-col gap-1">
@@ -201,7 +209,7 @@ function PoolLimits({
           const name = windowLabel(pool, window);
           const left = window.remainingPercent;
           const reset = window.resets.find((entry) => entry.at > now);
-          const resetsIn = reset ? formatDuration(reset.at - now) : null;
+          const resetsIn = reset ? formatDuration(reset.at - now, m) : null;
           return (
             <UsageRow
               key={`${window.kind}:${window.id}`}
@@ -209,15 +217,21 @@ function PoolLimits({
               fill={left}
               tone={limitTone(left)}
               value={resetsIn ? `${left}% · ${resetsIn}` : `${left}%`}
-              ariaValue={`${left}% left${resetsIn ? `, resets in ${resetsIn}` : ""}`}
-              onClick={onOpenUsage}
+              ariaValue={
+                resetsIn
+                  ? gt("{left}% left, resets in {duration}", { left, duration: resetsIn })
+                  : gt("{left}% left", { left })
+              }
+              opensUsage
               tooltip={
                 <>
                   <span className="text-foreground">
-                    {name}: {left}% left
+                    {gt("{label}: {left}% left", { label: name, left })}
                   </span>
                   {resetsIn ? (
-                    <span className="text-muted-foreground">Resets in {resetsIn}</span>
+                    <span className="text-muted-foreground">
+                      {gt("Resets in {duration}", { duration: resetsIn })}
+                    </span>
                   ) : null}
                 </>
               }

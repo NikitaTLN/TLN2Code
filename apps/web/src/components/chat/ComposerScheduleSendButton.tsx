@@ -1,4 +1,5 @@
 import { useAtomValue } from "@effect/atom-react";
+import { msg, T, useGT } from "gt-react";
 import { CalendarClockIcon } from "lucide-react";
 import { useState } from "react";
 import {
@@ -63,6 +64,7 @@ export function ComposerScheduleSendButton(props: {
   const timestampFormat = useClientSettings((s) => s.timestampFormat);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const gt = useGT();
 
   // Older servers reject one-time schedules.
   if (environment?.serverConfig?.environment.capabilities.oneTimeSchedules !== true) return null;
@@ -80,8 +82,8 @@ export function ComposerScheduleSendButton(props: {
     if (hasPassed(runAt)) {
       toastManager.add({
         type: "warning",
-        title: "Could not schedule message",
-        description: "That time has passed. Choose another time.",
+        title: gt("Could not schedule message"),
+        description: gt("That time has passed. Choose another time."),
       });
       return;
     }
@@ -107,7 +109,7 @@ export function ComposerScheduleSendButton(props: {
         const error = squashAtomCommandFailure(result);
         toastManager.add({
           type: "error",
-          title: "Could not schedule message",
+          title: gt("Could not schedule message"),
           description: error instanceof Error ? error.message : String(error),
         });
       }
@@ -116,8 +118,10 @@ export function ComposerScheduleSendButton(props: {
     props.onScheduled();
     toastManager.add({
       type: "success",
-      title: "Message scheduled",
-      description: `Sends ${RUN_AT_FORMATTER.format(new Date(runAt))}. Manage it in Automations.`,
+      title: gt("Message scheduled"),
+      description: gt("Sends {time}. Manage it in Automations.", {
+        time: RUN_AT_FORMATTER.format(new Date(runAt)),
+      }),
     });
   };
 
@@ -132,7 +136,7 @@ export function ComposerScheduleSendButton(props: {
                   type="button"
                   size="icon-sm"
                   variant="ghost-muted"
-                  aria-label="Schedule message"
+                  aria-label={gt("Schedule message")}
                   disabled={saving}
                 />
               }
@@ -141,7 +145,9 @@ export function ComposerScheduleSendButton(props: {
         >
           <CalendarClockIcon aria-hidden="true" />
         </TooltipTrigger>
-        <TooltipPopup>Send later</TooltipPopup>
+        <TooltipPopup>
+          <T>Send later</T>
+        </TooltipPopup>
       </Tooltip>
       <MenuPopup side="top" align="end">
         {presets.map((preset) => (
@@ -154,15 +160,15 @@ export function ComposerScheduleSendButton(props: {
         <MenuItem
           onClick={async () => {
             const choice = await requestCustomSnooze({
-              title: "Send later",
-              description: "Choose when this message is sent to the thread.",
-              durationLabel: "Send in",
-              submitLabel: "Schedule",
+              title: msg("Send later"),
+              description: msg("Choose when this message is sent to the thread."),
+              durationLabel: msg("Send in"),
+              submitLabel: msg("Schedule", { $context: "verb" }),
             });
             if (choice) void schedule(choice.snoozedUntil);
           }}
         >
-          Custom…
+          <T>Custom…</T>
         </MenuItem>
       </MenuPopup>
     </Menu>
