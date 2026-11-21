@@ -3079,7 +3079,11 @@ function makeFakeClaudeCli(answerSetServers = true) {
         const response = {
           subtype: "success",
           request_id: frame.request_id,
-          response: setServers ? { added: [], removed: [], errors: {} } : {},
+          response: setServers
+            ? { added: [], removed: [], errors: {} }
+            : frame.request.subtype === "mcp_status"
+              ? { mcpServers: [] }
+              : {},
         };
         stdout.write(`${JSON.stringify({ type: "control_response", response })}\n`);
       }
@@ -5696,7 +5700,7 @@ describe("ClaudeAdapterV2 background wake turns", () => {
   });
 
   it.effect(
-    "carries earlier user-only skill instructions on sends and steering with attachments",
+    "carries earlier skill instructions, user-only or not, on sends and steering with attachments",
     () =>
       Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
@@ -5728,7 +5732,7 @@ describe("ClaudeAdapterV2 background wake turns", () => {
         });
         yield* harness.runtime.startTurn(input);
 
-        const leadingText = `Ultrathink:\n/interrogate [The user invoked this skill. Follow the instructions at: ${path.join(homePath, "skills", "interrogate", "SKILL.md")}] then /review then /implement the fixes`;
+        const leadingText = `Ultrathink:\n/interrogate [The user invoked this skill. Follow the instructions at: ${path.join(homePath, "skills", "interrogate", "SKILL.md")}] then /review [The user invoked this skill. Follow the instructions at: ${path.join(homePath, "skills", "review", "SKILL.md")}] then /implement the fixes`;
         assert.deepEqual(harness.offeredMessages[0]?.message.content, [
           { type: "text", text: leadingText },
           { type: "text", text: "/implement the fixes" },
