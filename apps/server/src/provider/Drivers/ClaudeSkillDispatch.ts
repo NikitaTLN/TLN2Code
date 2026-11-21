@@ -10,7 +10,7 @@ import type { ServerProviderSkill } from "@t3tools/contracts";
 const SKILL_MENTION_PATTERN =
   /(^|\s)\p{Sc}(?![0-9][0-9_]*(?:[kKmMbBtT]|[eE][0-9]+)?(?:\s|$))(?=[a-zA-Z0-9:_-]*[a-zA-Z])([a-zA-Z0-9][a-zA-Z0-9:_-]*)(?=\s|$)/gu;
 
-export type ClaudeSkillTarget = Pick<ServerProviderSkill, "path" | "userInvocationOnly">;
+export type ClaudeSkillTarget = Pick<ServerProviderSkill, "path">;
 
 export interface ClaudeSkillDispatch {
   /** The whole prompt with mentions as `/name`, or `undefined` when the mention opens it. */
@@ -37,14 +37,14 @@ export function planClaudeSkillDispatch(
     return undefined;
   }
 
-  // Only the final skill gets native expansion. Earlier user-only skills need
-  // a fallback to their raw file because Claude's Skill tool refuses them.
+  // Only the final skill gets native expansion. Earlier ones point at their file:
+  // the agent may not call the Skill tool, which refuses user-only skills anyway.
   const annotated = new Set([last.name]);
   let promptWithInlineSlashes = "";
   let cursor = 0;
   for (const mention of mentions) {
     promptWithInlineSlashes += `${prompt.slice(cursor, mention.start)}/${mention.name}`;
-    if (mention.skill.userInvocationOnly === true && !annotated.has(mention.name)) {
+    if (!annotated.has(mention.name)) {
       promptWithInlineSlashes += ` [The user invoked this skill. Follow the instructions at: ${mention.skill.path}]`;
       annotated.add(mention.name);
     }

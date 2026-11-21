@@ -587,6 +587,48 @@ it.effect.each([
   }).pipe(Effect.provide(realQueryRunner)),
 );
 
+it.effect.each([
+  { case: "until plugin servers connect", connectsAfter: 2, waited: "500 millis" },
+  {
+    case: "at most ten seconds for a server that never connects",
+    connectsAfter: Infinity,
+    waited: "10 seconds",
+  },
+] as const)("holds the first prompt $case", ({ connectsAfter, waited }) =>
+  Effect.gen(function* () {
+    const statusCalls = vi.fn();
+    const firstStatus = Promise.withResolvers<void>();
+    const querySpy = vi.spyOn(ClaudeSdk, "query").mockImplementation(
+      () =>
+        ({
+          initializationResult: async () => ({}),
+          setMcpServers: async () => ({ added: ["t3-code"], removed: [], errors: {} }),
+          mcpServerStatus: async () => {
+            statusCalls();
+            firstStatus.resolve();
+            const status = statusCalls.mock.calls.length > connectsAfter ? "connected" : "pending";
+            return [
+              { name: "t3-code", status: "connected", source: "dynamic" },
+              { name: "plugin:github:github", status, source: "plugin" },
+            ];
+          },
+          close: vi.fn(),
+          [Symbol.asyncDispose]: async () => {},
+        }) as unknown as ClaudeSdk.Query,
+    );
+    yield* Effect.addFinalizer(() => Effect.sync(() => querySpy.mockRestore()));
+    const runner = yield* ClaudeAgentSdkQueryRunner;
+    const opening = yield* runner.open(resumedMcpQueryInput).pipe(Effect.forkChild);
+    yield* Effect.promise(() => firstStatus.promise);
+    assert.isUndefined(opening.pollUnsafe());
+    yield* TestClock.adjust(waited);
+    const session = yield* Fiber.join(opening);
+    yield* session.close;
+    if (Number.isFinite(connectsAfter))
+      assert.equal(statusCalls.mock.calls.length, connectsAfter + 1);
+  }).pipe(Effect.provide(realQueryRunner)),
+);
+
 function fakeClaudeCli(script: string): string {
   const dir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-claude-cli-"));
   const cli = NodePath.join(dir, "claude");

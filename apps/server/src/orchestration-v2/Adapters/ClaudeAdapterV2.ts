@@ -384,6 +384,9 @@ const CLAUDE_SCRIPT_EXTENSIONS = [".js", ".mjs", ".tsx", ".ts", ".jsx"];
 // The SDK has no control-request deadline; the CLI waits up to 30 s per MCP server.
 const CLAUDE_MCP_REGISTRATION_TIMEOUT = "90 seconds";
 const CLAUDE_BOOT_TIMEOUT = "5 minutes";
+// Plugin and claude.ai MCP servers connect after initialize; a first prompt sent sooner sees none of their tools.
+const CLAUDE_STARTUP_MCP_WAIT = "10 seconds";
+const CLAUDE_STARTUP_MCP_POLL = "250 millis";
 // Claude can consume a subagent result before the launching turn ends, leaving
 // its notification with no native wake turn to answer the continuation.
 const CLAUDE_WAKE_TURN_START_DEADLINE = "2 minutes";
@@ -1720,6 +1723,20 @@ export const layerQueryRunner: Layer.Layer<
                       servers: failed,
                     });
                   }
+                  yield* Effect.tryPromise({
+                    try: async () =>
+                      (await queryRuntime.mcpServerStatus()).some(
+                        (server) => server.status === "pending",
+                      ),
+                    catch: (cause) => queryRunnerError(cause, "mcpServerStatus"),
+                  }).pipe(
+                    Effect.repeat({
+                      schedule: Schedule.spaced(CLAUDE_STARTUP_MCP_POLL),
+                      while: (pending) => pending,
+                    }),
+                    Effect.timeout(CLAUDE_STARTUP_MCP_WAIT),
+                    Effect.ignore,
+                  );
                 }
                 yield* logProtocolEvent({
                   direction: "outgoing",

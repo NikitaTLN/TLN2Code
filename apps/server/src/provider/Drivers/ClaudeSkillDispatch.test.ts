@@ -30,9 +30,10 @@ describe("planClaudeSkillDispatch", () => {
     });
   });
 
-  it("dispatches the last mention and rewrites earlier ones inline", () => {
+  // Claude expands only the last skill; without its path the agent may skip an earlier one.
+  it("dispatches the last mention and points earlier ones at their instructions", () => {
     expect(planClaudeSkillDispatch("$review the diff, then $implement the fixes", SKILLS)).toEqual({
-      leadingText: "/review the diff, then /implement the fixes",
+      leadingText: `/review [The user invoked this skill. Follow the instructions at: ${skillPath("review")}] the diff, then /implement the fixes`,
       commandText: "/implement the fixes",
     });
   });
@@ -45,7 +46,7 @@ describe("planClaudeSkillDispatch", () => {
           SKILLS,
         ),
       ).toEqual({
-        leadingText: "/review the diff, then /implement the fixes",
+        leadingText: `/review [The user invoked this skill. Follow the instructions at: ${skillPath("review")}] the diff, then /implement the fixes`,
         commandText: "/implement the fixes",
       });
       expect(planClaudeSkillDispatch(`${symbol}2spec for this`, SKILLS)).toEqual({
@@ -68,7 +69,7 @@ describe("planClaudeSkillDispatch", () => {
     }
   });
 
-  it("bounds notes for repeated user-only skills and leaves the native dispatch unannotated", () => {
+  it("bounds notes for repeated skills and leaves the native dispatch unannotated", () => {
     const skills = new Map([
       ["interrogate", { path: skillPath("interrogate"), userInvocationOnly: true }],
       ["implement", { path: skillPath("implement"), userInvocationOnly: true }],
