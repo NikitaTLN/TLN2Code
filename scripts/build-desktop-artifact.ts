@@ -4111,6 +4111,10 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
         platform: options.platform,
         runtimeArchivePath: options.wslRuntime,
       }),
+      // Local builds may raise the install-speed limit; release builds keep the default.
+      fileLimit: yield* Config.Int("T3CODE_DESKTOP_WINDOWS_PAYLOAD_FILE_LIMIT").pipe(
+        Config.withDefault(WINDOWS_PACKAGED_PAYLOAD_FILE_LIMIT),
+      ),
       verbose: options.verbose,
     });
   }
